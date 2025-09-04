@@ -6,6 +6,8 @@ use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\KardexController;
 use App\Http\Controllers\VentaController;
 use App\Http\Controllers\CajaController;
+use App\Http\Controllers\PedidoController;
+use App\Http\Controllers\EntregaController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -52,4 +54,20 @@ Route::middleware(['auth', 'role:Dueño,Admin'])->group(function () {
     Route::post('/caja/abrir', [CajaController::class, 'open']);
     Route::post('/caja/cerrar', [CajaController::class, 'close']);
     Route::get('/caja/reporte/{id}', [CajaController::class, 'report']);
+    Route::get('/dashboard/pedidos', [PedidoController::class, 'index']);
+});
+
+// Pedidos (Despachador)
+Route::middleware(['auth', 'role:Despachador'])->group(function () {
+    Route::get('/pedidos', [PedidoController::class, 'index']);
+    Route::post('/pedidos', [PedidoController::class, 'store']);
+});
+
+// Entregas (Motociclista)
+Route::middleware(['auth', 'role:Motociclista'])->group(function () {
+    Route::get('/entregas', [EntregaController::class, 'index']);
+    Route::post('/entregas/tomar/{pedido}', [EntregaController::class, 'take']);
+    Route::get('/entregas/{id}', [EntregaController::class, 'show']);
+    Route::post('/entregas/{id}/status', [EntregaController::class, 'updateStatus']);
+    Route::get('/entregas/historial', [EntregaController::class, 'history']);
 });
