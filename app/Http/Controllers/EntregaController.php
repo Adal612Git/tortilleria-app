@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Entrega;
 use App\Models\Pedido;
 use App\Http\Requests\StoreEntregaRequest;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
