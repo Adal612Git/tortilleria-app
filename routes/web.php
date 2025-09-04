@@ -8,6 +8,8 @@ use App\Http\Controllers\VentaController;
 use App\Http\Controllers\CajaController;
 use App\Http\Controllers\PedidoController;
 use App\Http\Controllers\EntregaController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ReporteController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -50,6 +52,11 @@ Route::middleware(['auth', 'role:Despachador,Motociclista'])->group(function () 
 
 // Caja (Dueño/Admin)
 Route::middleware(['auth', 'role:Dueño,Admin'])->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index']);
+    Route::get('/reportes/ventas/pdf', [DashboardController::class, 'exportVentasPDF']);
+    Route::get('/reportes/ventas/csv', [DashboardController::class, 'exportVentasCSV']);
+    Route::get('/reportes/inventario/pdf', [DashboardController::class, 'exportInventarioPDF']);
+    Route::get('/reportes/inventario/csv', [DashboardController::class, 'exportInventarioCSV']);
     Route::get('/caja', [CajaController::class, 'index']);
     Route::post('/caja/abrir', [CajaController::class, 'open']);
     Route::post('/caja/cerrar', [CajaController::class, 'close']);
@@ -72,3 +79,7 @@ Route::middleware(['auth', 'role:Motociclista'])->group(function () {
     Route::get('/entregas/{id}', [EntregaController::class, 'show'])->whereNumber('id');
     Route::post('/entregas/{id}/status', [EntregaController::class, 'updateStatus'])->whereNumber('id');
 });
+
+// Reportes específicos
+Route::middleware(['auth', 'role:Despachador'])->get('/reportes/despachador', [ReporteController::class, 'despachadorResumen']);
+Route::middleware(['auth', 'role:Motociclista'])->get('/reportes/motociclista', [ReporteController::class, 'motociclistaHistorial']);
