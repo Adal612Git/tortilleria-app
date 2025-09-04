@@ -58,6 +58,15 @@ class CajaController extends Controller
             $caja->closed_by = Auth::id();
             $caja->closed_at = now();
             $caja->save();
+
+            DB::table('audits')->insert([
+                'user_id' => Auth::id(),
+                'action' => 'caja_cierre',
+                'entity_type' => 'Caja',
+                'entity_id' => $caja->id,
+                'description' => 'Cierre de caja con total '.$total,
+                'created_at' => now(),
+            ]);
         });
 
         // Generar y descargar PDF de reporte sin cambiar de vista

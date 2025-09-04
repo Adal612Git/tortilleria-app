@@ -8,7 +8,7 @@ use App\Models\Kardex;
 use App\Models\Product;
 use App\Models\Venta;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Http\Request;
+use App\Http\Requests\StoreVentaRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -24,12 +24,9 @@ class VentaController extends Controller
         return view('pos.index', compact('productos'));
     }
 
-    public function store(Request $request)
+    public function store(StoreVentaRequest $request)
     {
-        $data = $request->validate([
-            'product_id' => ['required', 'exists:products,id'],
-            'quantity' => ['required', 'integer', 'min:1'],
-        ]);
+        $data = $request->validated();
 
         $caja = Caja::where('status', 'abierta')->latest('opened_at')->first();
         if (!$caja) {

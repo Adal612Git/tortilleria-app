@@ -10,6 +10,7 @@ use App\Http\Controllers\PedidoController;
 use App\Http\Controllers\EntregaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReporteController;
+use App\Http\Controllers\AuditController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -57,6 +58,7 @@ Route::middleware(['auth', 'role:Dueño,Admin'])->group(function () {
     Route::get('/reportes/ventas/csv', [DashboardController::class, 'exportVentasCSV']);
     Route::get('/reportes/inventario/pdf', [DashboardController::class, 'exportInventarioPDF']);
     Route::get('/reportes/inventario/csv', [DashboardController::class, 'exportInventarioCSV']);
+    Route::get('/auditoria', [AuditController::class, 'index']);
     Route::get('/caja', [CajaController::class, 'index']);
     Route::post('/caja/abrir', [CajaController::class, 'open']);
     Route::post('/caja/cerrar', [CajaController::class, 'close']);

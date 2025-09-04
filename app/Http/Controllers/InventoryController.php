@@ -5,10 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Inventory;
 use App\Models\Kardex;
 use App\Models\Product;
-use Illuminate\Http\Request;
+use App\Http\Requests\InventoryMovementRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
 
 class InventoryController extends Controller
 {
@@ -22,13 +23,10 @@ class InventoryController extends Controller
         return view('inventory.index', compact('inventories', 'canManage'));
     }
 
-    public function addEntry(Request $request)
+    public function addEntry(InventoryMovementRequest $request)
     {
-        $data = $request->validate([
-            'product_id' => ['required', 'exists:products,id'],
-            'quantity' => ['required', 'integer', 'min:1'],
-            'description' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
+        $request->validate(['product_id' => ['required', 'exists:products,id']]);
 
         DB::transaction(function () use ($data) {
             $inventory = Inventory::firstOrCreate(
@@ -39,25 +37,30 @@ class InventoryController extends Controller
             $inventory->quantity += $data['quantity'];
             $inventory->save();
 
-            Kardex::create([
+            $k = Kardex::create([
                 'product_id' => $data['product_id'],
                 'type' => 'entrada',
                 'quantity' => $data['quantity'],
                 'description' => $data['description'] ?? null,
                 'created_by' => Auth::id(),
             ]);
+            DB::table('audits')->insert([
+                'user_id' => Auth::id(),
+                'action' => 'inventario_entrada',
+                'entity_type' => 'Kardex',
+                'entity_id' => $k->id,
+                'description' => 'Entrada de inventario producto '.$data['product_id'].' cantidad '.$data['quantity'],
+                'created_at' => now(),
+            ]);
         });
 
         return back()->with('status', 'Entrada registrada');
     }
 
-    public function addExit(Request $request)
+    public function addExit(InventoryMovementRequest $request)
     {
-        $data = $request->validate([
-            'product_id' => ['required', 'exists:products,id'],
-            'quantity' => ['required', 'integer', 'min:1'],
-            'description' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
+        $request->validate(['product_id' => ['required', 'exists:products,id']]);
 
         DB::transaction(function () use ($data) {
             $inventory = Inventory::firstOrCreate(
@@ -74,24 +77,29 @@ class InventoryController extends Controller
             $inventory->quantity -= $data['quantity'];
             $inventory->save();
 
-            Kardex::create([
+            $k = Kardex::create([
                 'product_id' => $data['product_id'],
                 'type' => 'salida',
                 'quantity' => $data['quantity'],
                 'description' => $data['description'] ?? null,
                 'created_by' => Auth::id(),
             ]);
+            DB::table('audits')->insert([
+                'user_id' => Auth::id(),
+                'action' => 'inventario_salida',
+                'entity_type' => 'Kardex',
+                'entity_id' => $k->id,
+                'description' => 'Salida de inventario producto '.$data['product_id'].' cantidad '.$data['quantity'],
+                'created_at' => now(),
+            ]);
         });
 
         return back()->with('status', 'Salida registrada');
     }
 
-    public function convertMasaToTotopos(Request $request)
+    public function convertMasaToTotopos(InventoryMovementRequest $request)
     {
-        $data = $request->validate([
-            'quantity' => ['required', 'integer', 'min:1'],
-            'description' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         DB::transaction(function () use ($data) {
             $masa = Product::where('name', 'Masa')->firstOrFail();
@@ -109,7 +117,7 @@ class InventoryController extends Controller
             // Salida de Masa
             $masaInv->quantity -= $data['quantity'];
             $masaInv->save();
-            Kardex::create([
+            $k1 = Kardex::create([
                 'product_id' => $masa->id,
                 'type' => 'conversion',
                 'quantity' => $data['quantity'],
@@ -120,12 +128,20 @@ class InventoryController extends Controller
             // Entrada de Totopos
             $totoposInv->quantity += $data['quantity'];
             $totoposInv->save();
-            Kardex::create([
+            $k2 = Kardex::create([
                 'product_id' => $totopos->id,
                 'type' => 'conversion',
                 'quantity' => $data['quantity'],
                 'description' => $data['description'] ?? 'Conversión Masa -> Totopos',
                 'created_by' => Auth::id(),
+            ]);
+            DB::table('audits')->insert([
+                'user_id' => Auth::id(),
+                'action' => 'inventario_conversion',
+                'entity_type' => 'Kardex',
+                'entity_id' => $k2->id,
+                'description' => 'Conversión Masa->Totopos cantidad '.$data['quantity'],
+                'created_at' => now(),
             ]);
         });
 

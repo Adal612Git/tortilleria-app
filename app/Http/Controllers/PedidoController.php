@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pedido;
+use App\Http\Requests\StorePedidoRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -25,14 +26,9 @@ class PedidoController extends Controller
         return view('pedidos.index', compact('pedidos', 'status'));
     }
 
-    public function store(Request $request)
+    public function store(StorePedidoRequest $request)
     {
-        $data = $request->validate([
-            'cliente' => ['required', 'string'],
-            'direccion' => ['required', 'string'],
-            'telefono' => ['nullable', 'string'],
-            'total' => ['required', 'numeric', 'min:0'],
-        ]);
+        $data = $request->validated();
 
         Pedido::create([
             'cliente' => $data['cliente'],
@@ -46,4 +42,3 @@ class PedidoController extends Controller
         return back()->with('status', 'Pedido creado');
     }
 }
-

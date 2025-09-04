@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Entrega;
 use App\Models\Pedido;
-use Illuminate\Http\Request;
+use App\Http\Requests\StoreEntregaRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -56,12 +56,9 @@ class EntregaController extends Controller
         return view('entregas.show', compact('entrega'));
     }
 
-    public function updateStatus(Request $request, $id)
+    public function updateStatus(StoreEntregaRequest $request, $id)
     {
-        $data = $request->validate([
-            'status' => ['required', 'in:entregado,no_entregado'],
-            'observacion' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $entrega = Entrega::with('pedido')->findOrFail($id);
         if ($entrega->motociclista_id !== Auth::id()) {
@@ -80,6 +77,15 @@ class EntregaController extends Controller
 
             $entrega->pedido->status = $data['status'];
             $entrega->pedido->save();
+
+            DB::table('audits')->insert([
+                'user_id' => Auth::id(),
+                'action' => 'entrega_estado',
+                'entity_type' => 'Entrega',
+                'entity_id' => $entrega->id,
+                'description' => 'Cambio de estado a '.$data['status'],
+                'created_at' => now(),
+            ]);
         });
 
         return redirect()->to('/entregas/historial')->with('status', 'Entrega actualizada');
@@ -100,4 +106,3 @@ class EntregaController extends Controller
         return view('entregas.historial', compact('entregas', 'range'));
     }
 }
-
