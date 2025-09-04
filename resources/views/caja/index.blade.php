@@ -10,10 +10,10 @@
     </div>
 
     @if (session('status'))
-        <div class="mb-4 p-3 rounded bg-green-50 text-green-700 text-sm">{{ session('status') }}</div>
+        <div class="alert-success mb-4">{{ session('status') }}</div>
     @endif
     @if ($errors->any())
-        <div class="mb-4 p-3 rounded bg-red-50 text-red-700 text-sm">{{ $errors->first() }}</div>
+        <div class="alert-error mb-4">{{ $errors->first() }}</div>
     @endif
 
     @if (!$caja)
@@ -21,7 +21,7 @@
             <p class="mb-4">No hay caja abierta.</p>
             <form method="POST" action="{{ url('/caja/abrir') }}">
                 @csrf
-                <button class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">Abrir caja</button>
+                <button class="btn-app btn-success-app">Abrir caja</button>
             </form>
         </div>
     @else
@@ -29,7 +29,7 @@
             <div class="mb-2">Caja abierta por: <strong>{{ $caja->openedBy->name }}</strong> en {{ $caja->opened_at->format('Y-m-d H:i') }}</div>
             <form id="close-caja-form" method="POST" action="{{ url('/caja/cerrar') }}">
                 @csrf
-                <button class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">Corte de caja</button>
+                <button class="btn-app btn-secondary-app">Corte de caja</button>
             </form>
         </div>
 

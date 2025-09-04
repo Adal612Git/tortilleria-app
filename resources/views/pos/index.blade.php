@@ -7,10 +7,10 @@
     <h1 class="text-3xl font-bold mb-6">Punto de Venta</h1>
 
     @if (session('status'))
-        <div class="mb-4 p-3 rounded bg-green-50 text-green-700 text-sm">{{ session('status') }}</div>
+        <div class="alert-success mb-4">{{ session('status') }}</div>
     @endif
     @if ($errors->any())
-        <div class="mb-4 p-3 rounded bg-red-50 text-red-700 text-sm">{{ $errors->first() }}</div>
+        <div class="alert-error mb-4">{{ $errors->first() }}</div>
     @endif
 
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
@@ -24,7 +24,7 @@
                     <div class="flex items-center gap-2 mb-3">
                         <input type="number" name="quantity" min="1" value="1" class="border rounded px-2 py-1 w-full" />
                     </div>
-                    <button class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded">Registrar venta</button>
+                    <button class="w-full btn-app btn-secondary-app">Registrar venta</button>
                 </form>
             </div>
         @endforeach

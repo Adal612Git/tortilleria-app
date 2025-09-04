@@ -19,9 +19,9 @@
         <div class="col-sm-3">
             <input type="datetime-local" name="to" value="{{ request('to') }}" class="form-control" placeholder="Hasta">
         </div>
-        <div class="col-12">
-            <button class="btn btn-primary btn-sm">Filtrar</button>
-            <a href="{{ url('/auditoria') }}" class="btn btn-secondary btn-sm">Limpiar</a>
+        <div class="col-12 d-flex gap-2">
+            <button class="btn-app btn-accent-app">Filtrar</button>
+            <a href="{{ url('/auditoria') }}" class="btn-app btn-outline-app">Limpiar</a>
         </div>
     </form>
 
@@ -55,4 +55,3 @@
     <div class="mt-3">{{ $audits->withQueryString()->links() }}</div>
 </div>
 @endsection
-

@@ -24,10 +24,10 @@
     </div>
 
     <div class="flex items-center gap-2 mb-4">
-        <a class="btn btn-sm btn-outline-primary" href="{{ url('/reportes/ventas/pdf') }}">Ventas PDF</a>
-        <a class="btn btn-sm btn-outline-secondary" href="{{ url('/reportes/ventas/csv') }}">Ventas CSV</a>
-        <a class="btn btn-sm btn-outline-primary" href="{{ url('/reportes/inventario/pdf') }}">Inventario PDF</a>
-        <a class="btn btn-sm btn-outline-secondary" href="{{ url('/reportes/inventario/csv') }}">Inventario CSV</a>
+        <a class="btn-app btn-accent-app" href="{{ url('/reportes/ventas/pdf') }}">Ventas PDF</a>
+        <a class="btn-app btn-outline-app" href="{{ url('/reportes/ventas/csv') }}">Ventas CSV</a>
+        <a class="btn-app btn-accent-app" href="{{ url('/reportes/inventario/pdf') }}">Inventario PDF</a>
+        <a class="btn-app btn-outline-app" href="{{ url('/reportes/inventario/csv') }}">Inventario CSV</a>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -80,4 +80,3 @@
     </script>
 </div>
 @endsection
-

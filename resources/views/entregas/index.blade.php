@@ -7,10 +7,10 @@
     <h1 class="text-2xl font-semibold mb-4">Pedidos pendientes (Motociclista)</h1>
 
     @if (session('status'))
-        <div class="mb-4 p-3 rounded bg-green-50 text-green-700 text-sm">{{ session('status') }}</div>
+        <div class="alert-success mb-4">{{ session('status') }}</div>
     @endif
     @if ($errors->any())
-        <div class="mb-4 p-3 rounded bg-red-50 text-red-700 text-sm">{{ $errors->first() }}</div>
+        <div class="alert-error mb-4">{{ $errors->first() }}</div>
     @endif
 
     <div class="overflow-x-auto bg-white border rounded">
@@ -34,7 +34,7 @@
                     <td class="px-4 py-2">
                         <form method="POST" action="{{ url('/entregas/tomar/'.$p->id) }}">
                             @csrf
-                            <button class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">Tomar</button>
+                            <button class="btn-app btn-accent-app">Tomar</button>
                         </form>
                     </td>
                 </tr>
@@ -48,4 +48,3 @@
     <div class="mt-3">{{ $pendientes->links() }}</div>
 </div>
 @endsection
-

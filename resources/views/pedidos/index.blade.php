@@ -7,10 +7,10 @@
     <h1 class="text-2xl font-semibold mb-4">Pedidos (Despachador)</h1>
 
     @if (session('status'))
-        <div class="mb-4 p-3 rounded bg-green-50 text-green-700 text-sm">{{ session('status') }}</div>
+        <div class="alert-success mb-4">{{ session('status') }}</div>
     @endif
     @if ($errors->any())
-        <div class="mb-4 p-3 rounded bg-red-50 text-red-700 text-sm">{{ $errors->first() }}</div>
+        <div class="alert-error mb-4">{{ $errors->first() }}</div>
     @endif
 
     <div class="bg-white border rounded p-4 mb-6">
@@ -34,7 +34,7 @@
                 <input name="total" type="number" min="0" step="0.01" required class="border rounded w-full px-2 py-1" />
             </div>
             <div class="md:col-span-2">
-                <button class="bg-blue-600 text-white px-4 py-2 rounded">Crear</button>
+                <button class="btn-app btn-secondary-app">Crear</button>
             </div>
         </form>
     </div>
@@ -76,4 +76,3 @@
     <div class="mt-3">{{ $pedidos->withQueryString()->links() }}</div>
 </div>
 @endsection
-

@@ -10,10 +10,10 @@
     </div>
 
     @if (session('status'))
-        <div class="mb-4 p-3 rounded bg-green-50 text-green-700 text-sm">{{ session('status') }}</div>
+        <div class="alert-success mb-4">{{ session('status') }}</div>
     @endif
     @if ($errors->any())
-        <div class="mb-4 p-3 rounded bg-red-50 text-red-700 text-sm">{{ $errors->first() }}</div>
+        <div class="alert-error mb-4">{{ $errors->first() }}</div>
     @endif
 
     @if ($canManage)
@@ -29,7 +29,7 @@
                     <label class="block text-sm text-gray-600">Descripción (opcional)</label>
                     <input type="text" name="description" class="border rounded px-2 py-1 w-full">
                 </div>
-                <button class="bg-indigo-600 text-white px-4 py-2 rounded">Convertir</button>
+                <button class="btn-app btn-accent-app">Convertir</button>
             </form>
         </div>
     @endif
@@ -60,19 +60,19 @@
                                     @csrf
                                     <input type="hidden" name="product_id" value="{{ $inv->product->id }}">
                                     <input type="number" name="quantity" min="1" placeholder="Entrada" class="w-24 border rounded px-2 py-1">
-                                    <button class="bg-green-600 text-white px-3 py-1 rounded">Entrada</button>
+                                    <button class="btn-app btn-success-app">Entrada</button>
                                 </form>
                                 <form method="POST" action="{{ url('/inventario/salida') }}" class="flex items-center gap-1">
                                     @csrf
                                     <input type="hidden" name="product_id" value="{{ $inv->product->id }}">
                                     <input type="number" name="quantity" min="1" placeholder="Salida" class="w-24 border rounded px-2 py-1">
-                                    <button class="bg-red-600 text-white px-3 py-1 rounded">Salida</button>
+                                    <button class="btn-app btn-secondary-app">Salida</button>
                                 </form>
                                 <form method="POST" action="{{ url('/inventario/min-stock') }}" class="flex items-center gap-1">
                                     @csrf
                                     <input type="hidden" name="product_id" value="{{ $inv->product->id }}">
                                     <input type="number" name="min_stock" min="0" value="{{ $inv->min_stock }}" class="w-24 border rounded px-2 py-1">
-                                    <button class="bg-blue-600 text-white px-3 py-1 rounded">Actualizar mínimo</button>
+                                    <button class="btn-app btn-accent-app">Actualizar mínimo</button>
                                 </form>
                             </div>
                         </td>

@@ -7,10 +7,10 @@
     <h1 class="text-2xl font-semibold mb-4">Entrega del pedido</h1>
 
     @if (session('status'))
-        <div class="mb-4 p-3 rounded bg-green-50 text-green-700 text-sm">{{ session('status') }}</div>
+        <div class="alert-success mb-4">{{ session('status') }}</div>
     @endif
     @if ($errors->any())
-        <div class="mb-4 p-3 rounded bg-red-50 text-red-700 text-sm">{{ $errors->first() }}</div>
+        <div class="alert-error mb-4">{{ $errors->first() }}</div>
     @endif
 
     <div class="bg-white border rounded p-4 mb-4">
@@ -38,7 +38,7 @@
                 <label class="block text-sm text-gray-600">Observación (requerida si no entregado)</label>
                 <input name="observacion" class="border rounded w-full px-2 py-1" />
             </div>
-            <button class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">Guardar</button>
+            <button class="btn-app btn-success-app">Guardar</button>
         </form>
     </div>
 
@@ -57,4 +57,3 @@
     </script>
 </div>
 @endsection
-
