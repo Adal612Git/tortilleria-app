@@ -1,0 +1,27 @@
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+
+class InventorySeeder extends Seeder
+{
+    public function run(): void
+    {
+        $products = DB::table('products')->get(['id']);
+
+        foreach ($products as $product) {
+            DB::table('inventories')->updateOrInsert(
+                ['product_id' => $product->id],
+                [
+                    'quantity' => 0,
+                    'min_stock' => 10,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
+        }
+    }
+}
+
