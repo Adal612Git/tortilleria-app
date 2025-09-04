@@ -1,13 +1,9 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Despacho</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="min-h-screen bg-gray-100 flex items-center justify-center">
-    <h1 class="text-3xl font-bold">Bienvenido Despachador</h1>
-</body>
-</html>
+@extends('layouts.app')
 
+@section('title', 'Dashboard Despacho')
+
+@section('content')
+    <div class="d-flex justify-content-center align-items-center" style="min-height: 60vh;">
+        <h1 class="text-3xl font-bold">Bienvenido Despachador</h1>
+    </div>
+@endsection

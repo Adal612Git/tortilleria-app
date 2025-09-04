@@ -1,13 +1,9 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="min-h-screen bg-gray-100 flex items-center justify-center">
-    <div class="w-full max-w-md bg-white shadow rounded p-6">
+@extends('layouts.app')
+
+@section('title', 'Login')
+
+@section('content')
+    <div class="w-full max-w-md bg-white shadow rounded p-6 mx-auto mt-10">
         <h1 class="text-2xl font-semibold text-gray-800 mb-6 text-center">Iniciar sesión</h1>
 
         @if ($errors->any())
@@ -36,6 +32,4 @@
             </button>
         </form>
     </div>
-    </body>
-</html>
-
+@endsection

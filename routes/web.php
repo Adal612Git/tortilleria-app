@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\KardexController;
+use App\Http\Controllers\VentaController;
+use App\Http\Controllers\CajaController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -14,6 +16,7 @@ Route::get('/login', function () {
 })->name('login');
 
 Route::post('/login', [LoginController::class, 'login']);
+Route::post('/logout', [LoginController::class, 'logout'])->middleware('auth');
 
 Route::view('/dashboard/dueno', 'dashboard.dueno');
 Route::view('/dashboard/admin', 'dashboard.admin');
@@ -35,4 +38,18 @@ Route::middleware('auth')->group(function () {
 
     // Kardex visible para todos los roles
     Route::get('/kardex', [KardexController::class, 'index']);
+});
+
+// POS (Despachador/Motociclista)
+Route::middleware(['auth', 'role:Despachador,Motociclista'])->group(function () {
+    Route::get('/pos', [VentaController::class, 'pos']);
+    Route::post('/ventas', [VentaController::class, 'store']);
+});
+
+// Caja (Dueño/Admin)
+Route::middleware(['auth', 'role:Dueño,Admin'])->group(function () {
+    Route::get('/caja', [CajaController::class, 'index']);
+    Route::post('/caja/abrir', [CajaController::class, 'open']);
+    Route::post('/caja/cerrar', [CajaController::class, 'close']);
+    Route::get('/caja/reporte/{id}', [CajaController::class, 'report']);
 });

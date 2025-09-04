@@ -1,12 +1,8 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventario</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="min-h-screen bg-gray-50">
+@extends('layouts.app')
+
+@section('title', 'Inventario')
+
+@section('content')
 <div class="max-w-5xl mx-auto py-8 px-4">
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-semibold">Inventario</h1>
@@ -88,6 +84,4 @@
     </div>
     <p class="text-xs text-gray-500 mt-2">Los elementos en rojo están en o por debajo del stock mínimo.</p>
 </div>
-</body>
-</html>
-
+@endsection
