@@ -67,7 +67,8 @@ Route::middleware(['auth', 'role:Despachador'])->group(function () {
 Route::middleware(['auth', 'role:Motociclista'])->group(function () {
     Route::get('/entregas', [EntregaController::class, 'index']);
     Route::post('/entregas/tomar/{pedido}', [EntregaController::class, 'take']);
-    Route::get('/entregas/{id}', [EntregaController::class, 'show']);
-    Route::post('/entregas/{id}/status', [EntregaController::class, 'updateStatus']);
+    // Colocar historial antes de la ruta con {id} para evitar colisión
     Route::get('/entregas/historial', [EntregaController::class, 'history']);
+    Route::get('/entregas/{id}', [EntregaController::class, 'show'])->whereNumber('id');
+    Route::post('/entregas/{id}/status', [EntregaController::class, 'updateStatus'])->whereNumber('id');
 });
