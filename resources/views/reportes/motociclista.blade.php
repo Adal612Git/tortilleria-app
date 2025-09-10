@@ -15,7 +15,7 @@
         </select>
     </form>
 
-    <div class="overflow-x-auto bg-white border rounded">
+    <div class="overflow-x-auto bg-secondary border rounded">
         <table class="min-w-full">
             <thead>
             <tr class="bg-gray-100 text-left text-sm text-gray-700">
@@ -44,4 +44,3 @@
     <div class="mt-3">{{ $entregas->withQueryString()->links() }}</div>
 </div>
 @endsection
-

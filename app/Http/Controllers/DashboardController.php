@@ -16,45 +16,74 @@ class DashboardController extends Controller
     {
         $now = now();
 
-        // Ventas por hora (últimas 24h)
-        $desde24 = $now->copy()->subHours(24);
-        $ventasHoraRaw = Venta::select(
-                DB::raw("strftime('%Y-%m-%d %H:00:00', created_at) as h"),
-                DB::raw('SUM(total) as total')
-            )
-            ->where('created_at', '>=', $desde24)
-            ->groupBy('h')
-            ->orderBy('h')
-            ->get();
-        $labelsHora = [];
-        $dataHora = [];
-        for ($i = 23; $i >= 0; $i--) {
-            $slot = $now->copy()->subHours($i)->startOfHour();
-            $labelsHora[] = $slot->format('H:00');
-            $match = $ventasHoraRaw->firstWhere('h', $slot->format('Y-m-d H:00:00'));
-            $dataHora[] = $match->total ?? 0;
-        }
+        // Productos base
+        $products = Product::whereIn('name', ['Tortillas', 'Masa', 'Totopos'])->get()->keyBy('name');
+        $ids = $products->pluck('id')->values();
 
-        // Ventas por día (últimos 30 días)
+        // Rango fechas: 30 días para diario y 12 semanas para semanal
         $desde30d = $now->copy()->subDays(29)->startOfDay();
-        $ventasDiaRaw = Venta::select(
-                DB::raw("date(created_at) as d"),
-                DB::raw('SUM(total) as total')
-            )
-            ->where('created_at', '>=', $desde30d)
-            ->groupBy('d')
-            ->orderBy('d')
-            ->get();
+        $desde12w = $now->copy()->subWeeks(11)->startOfWeek();
+
+        $ventasRango = Venta::whereIn('product_id', $ids)
+            ->where('created_at', '>=', min($desde30d, $desde12w))
+            ->get(['product_id', 'total', 'created_at']);
+
+        // Series por día por producto
         $labelsDia = [];
-        $dataDia = [];
+        $seriesDia = [
+            'Tortillas' => array_fill(0, 30, 0),
+            'Masa' => array_fill(0, 30, 0),
+            'Totopos' => array_fill(0, 30, 0),
+        ];
         for ($i = 0; $i < 30; $i++) {
             $day = $desde30d->copy()->addDays($i);
             $labelsDia[] = $day->format('Y-m-d');
-            $match = $ventasDiaRaw->firstWhere('d', $day->format('Y-m-d'));
-            $dataDia[] = $match->total ?? 0;
+        }
+        foreach ($ventasRango as $v) {
+            $d = $v->created_at->copy()->startOfDay()->format('Y-m-d');
+            $pos = array_search($d, $labelsDia, true);
+            if ($pos !== false) {
+                foreach (['Tortillas', 'Masa', 'Totopos'] as $name) {
+                    if (isset($products[$name]) && $v->product_id === $products[$name]->id) {
+                        $seriesDia[$name][$pos] += (float) $v->total;
+                        break;
+                    }
+                }
+            }
         }
 
-        // Ventas por producto (top 10)
+        // Serie concentrado total (diario)
+        $dataTotalDia = [];
+        for ($i = 0; $i < 30; $i++) {
+            $sum = ($seriesDia['Tortillas'][$i] ?? 0) + ($seriesDia['Masa'][$i] ?? 0) + ($seriesDia['Totopos'][$i] ?? 0);
+            $dataTotalDia[] = $sum;
+        }
+
+        // Series por semana por producto (últimas 12 semanas)
+        $labelsSem = [];
+        $seriesSem = [
+            'Tortillas' => array_fill(0, 12, 0),
+            'Masa' => array_fill(0, 12, 0),
+            'Totopos' => array_fill(0, 12, 0),
+        ];
+        for ($i = 0; $i < 12; $i++) {
+            $w = $desde12w->copy()->addWeeks($i);
+            $labelsSem[] = $w->format('o-W'); // ISO year-week
+        }
+        foreach ($ventasRango as $v) {
+            $wk = $v->created_at->copy()->startOfWeek()->format('o-W');
+            $pos = array_search($wk, $labelsSem, true);
+            if ($pos !== false) {
+                foreach (['Tortillas', 'Masa', 'Totopos'] as $name) {
+                    if (isset($products[$name]) && $v->product_id === $products[$name]->id) {
+                        $seriesSem[$name][$pos] += (float) $v->total;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Top 10 productos (se mantiene)
         $ventasProducto = Venta::select('product_id', DB::raw('SUM(quantity) as qty'), DB::raw('SUM(total) as total'))
             ->with('product')
             ->groupBy('product_id')
@@ -62,7 +91,20 @@ class DashboardController extends Controller
             ->limit(10)
             ->get();
         $labelsProducto = $ventasProducto->map(fn($v) => $v->product->name);
-        $dataProducto = $ventasProducto->map(fn($v) => $v->total);
+        $dataProducto = $ventasProducto->map(fn($v) => (float) $v->total);
+
+        // Top repartidores (por total de pedidos entregados)
+        $topRepartidores = DB::table('entregas')
+            ->join('pedidos', 'pedidos.id', '=', 'entregas.pedido_id')
+            ->join('users', 'users.id', '=', 'entregas.motociclista_id')
+            ->select('users.name as repartidor', DB::raw('COUNT(entregas.id) as entregas'), DB::raw('SUM(pedidos.total) as total'))
+            ->where('entregas.status', 'entregado')
+            ->groupBy('entregas.motociclista_id')
+            ->orderByDesc(DB::raw('SUM(pedidos.total)'))
+            ->limit(10)
+            ->get();
+        $labelsRepartidor = $topRepartidores->pluck('repartidor');
+        $dataRepartidor = $topRepartidores->pluck('total')->map(fn($t) => (float) $t);
 
         // Cards
         $ventasHoy = Venta::whereDate('created_at', $now->toDateString())->sum('total');
@@ -71,16 +113,21 @@ class DashboardController extends Controller
         $pedidosActivos = Pedido::whereIn('status', ['pendiente', 'en_progreso'])->count();
 
         return view('dashboard.index', [
-            'labelsHora' => $labelsHora,
-            'dataHora' => $dataHora,
             'labelsDia' => $labelsDia,
-            'dataDia' => $dataDia,
+            'seriesDia' => $seriesDia,
+            'labelsSem' => $labelsSem,
+            'seriesSem' => $seriesSem,
             'labelsProducto' => $labelsProducto,
             'dataProducto' => $dataProducto,
+            'labelsTotalDia' => $labelsDia,
+            'dataTotalDia' => $dataTotalDia,
+            'labelsRepartidor' => $labelsRepartidor,
+            'dataRepartidor' => $dataRepartidor,
             'ventasHoy' => $ventasHoy,
             'ventasMes' => $ventasMes,
             'inventarioTotal' => $inventarioTotal,
             'pedidosActivos' => $pedidosActivos,
+            'topRepartidores' => $topRepartidores,
         ]);
     }
 
@@ -159,4 +206,3 @@ class DashboardController extends Controller
         return [$from ?: null, $to ?: null];
     }
 }
-

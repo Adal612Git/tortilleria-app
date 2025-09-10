@@ -21,7 +21,7 @@
         <div><span class="text-gray-600">Estado actual:</span> {{ $entrega->status }}</div>
     </div>
 
-    <div class="bg-white border rounded p-4">
+    <div class="bg-secondary border rounded p-4">
         <form method="POST" action="{{ url('/entregas/'.$entrega->id.'/status') }}" id="status-form" class="space-y-3">
             @csrf
             <div class="flex items-center gap-3">

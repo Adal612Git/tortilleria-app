@@ -14,6 +14,7 @@
 <body>
     <div class="title">Tortillería - Corte de Caja</div>
     <div class="section">Abierta: {{ $caja->opened_at->format('Y-m-d H:i') }} por {{ $caja->openedBy->name }}</div>
+    <div class="section">Fondo de apertura: $ {{ number_format($caja->opening_fund, 2) }}</div>
     <div class="section">Cerrada: {{ optional($caja->closed_at)->format('Y-m-d H:i') }} por {{ $caja->closedBy?->name }}</div>
 
     <table class="table">
@@ -44,4 +45,3 @@
     <div class="section" style="text-align:right; font-weight:bold;">Subtotal: $ {{ number_format($subtotal, 2) }}</div>
 </body>
 </html>
-

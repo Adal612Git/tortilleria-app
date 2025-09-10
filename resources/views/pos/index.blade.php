@@ -15,7 +15,7 @@
 
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         @foreach ($productos as $p)
-            <div class="bg-white border rounded p-4 flex flex-col items-center">
+            <div class="bg-secondary border rounded p-4 flex flex-col items-center">
                 <div class="text-lg font-semibold">{{ $p->name }}</div>
                 <div class="text-gray-600 mb-3">$ {{ number_format($p->price, 2) }}</div>
                 <form method="POST" action="{{ url('/ventas') }}" class="w-full">

@@ -26,5 +26,42 @@
 
             <button type="submit" class="w-full btn-app btn-secondary-app">Entrar</button>
         </form>
+
+        <div id="forgot-app" class="mt-4 text-center">
+            <button @click="send" type="button" class="text-blue-600 hover:underline">Olvidé la contraseña</button>
+            <p v-if="msg" class="mt-2 text-sm" :class="ok ? 'text-green-600' : 'text-red-600'">@{{ msg }}</p>
+        </div>
     </div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script>
+        const { createApp, ref } = Vue;
+        createApp({
+            setup() {
+                const msg = ref('');
+                const ok = ref(false);
+                const send = async () => {
+                    msg.value = '';
+                    ok.value = false;
+                    const emailEl = document.getElementById('email');
+                    const email = emailEl ? emailEl.value : '';
+                    if (!email) {
+                        msg.value = 'Ingresa tu email para enviar el enlace.';
+                        ok.value = false;
+                        return;
+                    }
+                    try {
+                        const { data } = await window.axios.post('/password/email', { email });
+                        ok.value = !!data.ok;
+                        msg.value = data.message || 'Se envió el enlace de recuperación si el email existe.';
+                    } catch (e) {
+                        ok.value = false;
+                        const data = e?.response?.data;
+                        msg.value = data?.message || 'No se pudo enviar el enlace.';
+                    }
+                };
+                return { msg, ok, send };
+            }
+        }).mount('#forgot-app');
+    </script>
 @endsection

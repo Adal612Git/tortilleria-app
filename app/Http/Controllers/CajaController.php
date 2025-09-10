@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Caja;
 use App\Models\Venta;
+use App\Models\Pedido;
+use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,15 +16,32 @@ class CajaController extends Controller
     public function index()
     {
         $caja = Caja::where('status', 'abierta')->latest('opened_at')->first();
-        $ventas = collect();
+        $ventasCaja = collect();
         if ($caja) {
-            $ventas = Venta::with(['product', 'user'])
+            $ventasCaja = Venta::with(['product', 'user'])
                 ->where('caja_id', $caja->id)
                 ->orderByDesc('created_at')
                 ->get();
         }
 
-        return view('caja.index', compact('caja', 'ventas'));
+        $ventasDia = Venta::with(['product', 'user'])
+            ->whereDate('created_at', now()->toDateString())
+            ->orderByDesc('created_at')
+            ->get();
+
+        $pendientes = Pedido::where('status', 'pendiente')->latest()->limit(100)->get();
+        $motociclistas = User::with('role')->whereHas('role', fn($q) => $q->where('name', 'Motociclista'))->orderBy('name')->get();
+        $roleName = optional(auth()->user()->role)->name;
+        $canAssign = in_array($roleName, ['Admin', 'Despachador'], true);
+
+        return view('caja.index', [
+            'caja' => $caja,
+            'ventas' => $ventasCaja,
+            'ventasDia' => $ventasDia,
+            'pendientes' => $pendientes,
+            'motociclistas' => $motociclistas,
+            'canAssign' => $canAssign,
+        ]);
     }
 
     public function open(Request $request)
@@ -31,9 +50,14 @@ class CajaController extends Controller
             return back()->withErrors('Ya existe una caja abierta.');
         }
 
+        $data = $request->validate([
+            'opening_fund' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
         Caja::create([
             'opened_by' => Auth::id(),
             'opened_at' => now(),
+            'opening_fund' => $data['opening_fund'] ?? 0,
             'status' => 'abierta',
             'total_in' => 0,
             'total_out' => 0,

@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Auditoría')
+@section('title', 'Historial')
 
 @section('content')
 <div class="max-w-7xl mx-auto py-8 px-4">
-    <h1 class="text-2xl font-semibold mb-4">Auditoría</h1>
+    <h1 class="text-2xl font-semibold mb-4">Historial</h1>
 
-    <form method="GET" action="{{ url('/auditoria') }}" class="row g-2 mb-3">
+    <form method="GET" action="{{ url('/historial') }}" class="row g-2 mb-3">
         <div class="col-sm-3">
             <input type="number" name="user_id" value="{{ request('user_id') }}" class="form-control" placeholder="Usuario ID">
         </div>
@@ -21,11 +21,11 @@
         </div>
         <div class="col-12 d-flex gap-2">
             <button class="btn-app btn-accent-app">Filtrar</button>
-            <a href="{{ url('/auditoria') }}" class="btn-app btn-outline-app">Limpiar</a>
+            <a href="{{ url('/historial') }}" class="btn-app btn-outline-app">Limpiar</a>
         </div>
     </form>
 
-    <div class="table-responsive bg-white border rounded">
+    <div class="table-responsive bg-secondary border rounded">
         <table class="table mb-0">
             <thead class="table-light">
             <tr>

@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 
 class LoginController extends Controller
 {
@@ -14,10 +16,15 @@ class LoginController extends Controller
             'password' => ['required'],
         ]);
 
+        $key = $this->throttleKey($request);
+
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
 
             $user = Auth::user();
+
+            // Successful login: clear throttle attempts
+            RateLimiter::clear($key);
 
             $response = $this->authenticated($request, $user);
             if ($response) {
@@ -26,6 +33,9 @@ class LoginController extends Controller
 
             return redirect()->intended('/');
         }
+
+        // Failed login: record attempt with 15 minutes decay
+        RateLimiter::hit($key, 60 * 15);
 
         return back()->withErrors([
             'email' => 'Credenciales inválidas.',
@@ -36,13 +46,13 @@ class LoginController extends Controller
     {
         $role = optional($user->role)->name;
 
+        // Redirigir a /dashboard para Admin, Caja (si existe) y Despachador
+        if (in_array($role, ['Admin', 'Caja', 'Despachador', 'Dueño'], true)) {
+            return redirect('/dashboard');
+        }
+
+        // Otros roles mantienen comportamiento previo
         switch ($role) {
-            case 'Dueño':
-                return redirect('/dashboard/dueno');
-            case 'Admin':
-                return redirect('/dashboard/admin');
-            case 'Despachador':
-                return redirect('/dashboard/despacho');
             case 'Motociclista':
                 return redirect('/dashboard/moto');
             default:
@@ -56,5 +66,10 @@ class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         return redirect('/login');
+    }
+
+    private function throttleKey(Request $request): string
+    {
+        return Str::lower($request->input('email')).'|'.$request->ip();
     }
 }

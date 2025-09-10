@@ -9,7 +9,7 @@
         <a href="{{ url('/inventario') }}" class="text-blue-600 hover:underline">Volver a Inventario</a>
     </div>
 
-    <div class="overflow-x-auto bg-white border rounded">
+    <div class="overflow-x-auto bg-secondary border rounded">
         <table class="min-w-full">
             <thead>
             <tr class="bg-gray-100 text-left text-sm text-gray-700">

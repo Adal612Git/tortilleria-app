@@ -4,7 +4,8 @@
 
 @section('content')
 <div class="max-w-5xl mx-auto py-8 px-4">
-    <h1 class="text-2xl font-semibold mb-4">Pedidos pendientes (Motociclista)</h1>
+    <h1 class="text-2xl font-semibold mb-4">Pedidos pendientes</h1>
+    <div class="alert-info mb-4">La asignación de viajes se realiza por Admin o Despachador desde Caja o el panel de administración.</div>
 
     @if (session('status'))
         <div class="alert-success mb-4">{{ session('status') }}</div>
@@ -13,7 +14,7 @@
         <div class="alert-error mb-4">{{ $errors->first() }}</div>
     @endif
 
-    <div class="overflow-x-auto bg-white border rounded">
+    <div class="overflow-x-auto bg-secondary border rounded">
         <table class="min-w-full">
             <thead>
             <tr class="bg-gray-100 text-left text-sm text-gray-700">
@@ -31,12 +32,7 @@
                     <td class="px-4 py-2">{{ $p->cliente }}</td>
                     <td class="px-4 py-2">{{ $p->direccion }}</td>
                     <td class="px-4 py-2">$ {{ number_format($p->total, 2) }}</td>
-                    <td class="px-4 py-2">
-                        <form method="POST" action="{{ url('/entregas/tomar/'.$p->id) }}">
-                            @csrf
-                            <button class="btn-app btn-accent-app">Tomar</button>
-                        </form>
-                    </td>
+                    <td class="px-4 py-2 text-sm text-gray-500">Asignación sólo por Admin/Despachador</td>
                 </tr>
             @empty
                 <tr><td colspan="5" class="px-4 py-6 text-center text-gray-500">No hay pedidos pendientes</td></tr>

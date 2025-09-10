@@ -9,11 +9,11 @@
                     <a class="nav-chip btn-soft-green me-2 {{ request()->is('inventario') ? 'active' : '' }}" href="{{ url('/inventario') }}">Inventario</a>
                     <a class="nav-chip btn-soft-cyan me-2 {{ request()->is('kardex') ? 'active' : '' }}" href="{{ url('/kardex') }}">Kardex</a>
                     <a class="nav-chip btn-soft-amber me-2 {{ request()->is('caja') ? 'active' : '' }}" href="{{ url('/caja') }}">Caja</a>
-                    <a class="nav-chip btn-soft-red me-2 {{ request()->is('auditoria') ? 'active' : '' }}" href="{{ url('/auditoria') }}">Auditoría</a>
+                    <a class="nav-chip btn-soft-green me-2 {{ request()->is('contabilidad') ? 'active' : '' }}" href="{{ url('/contabilidad') }}">Contabilidad</a>
+                    <a class="nav-chip btn-soft-red me-2 {{ (request()->is('historial') || request()->is('auditoria')) ? 'active' : '' }}" href="{{ url('/historial') }}">Historial</a>
                 @elseif($role === 'Despachador')
                     <a class="nav-chip btn-soft-blue me-2 {{ request()->is('pos') ? 'active' : '' }}" href="{{ url('/pos') }}">POS</a>
                     <a class="nav-chip btn-soft-green me-2 {{ request()->is('pedidos*') ? 'active' : '' }}" href="{{ url('/pedidos') }}">Pedidos</a>
-                    <a class="nav-chip btn-soft-cyan me-2 {{ request()->is('inventario') ? 'active' : '' }}" href="{{ url('/inventario') }}">Inventario</a>
                     <a class="nav-chip btn-soft-amber me-2 {{ request()->is('reportes/despachador') ? 'active' : '' }}" href="{{ url('/reportes/despachador') }}">Reporte Turno</a>
                 @elseif($role === 'Motociclista')
                     <a class="nav-chip btn-soft-blue me-2 {{ request()->is('entregas') ? 'active' : '' }}" href="{{ url('/entregas') }}">Entregas</a>

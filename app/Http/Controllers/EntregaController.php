@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Entrega;
 use App\Models\Pedido;
+use App\Models\User;
 use App\Http\Requests\StoreEntregaRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -19,33 +20,7 @@ class EntregaController extends Controller
 
     public function take($pedidoId)
     {
-        $pedido = Pedido::findOrFail($pedidoId);
-        if ($pedido->status !== 'pendiente') {
-            return back()->withErrors('El pedido ya no está disponible.');
-        }
-
-        try {
-            DB::transaction(function () use ($pedido) {
-                // Verificar que no exista entrega previa
-                if ($pedido->entrega()->exists()) {
-                    abort(422, 'El pedido ya fue tomado.');
-                }
-
-                $pedido->status = 'en_progreso';
-                $pedido->save();
-
-                Entrega::create([
-                    'pedido_id' => $pedido->id,
-                    'motociclista_id' => Auth::id(),
-                    'status' => 'en_progreso',
-                ]);
-            });
-        } catch (\Throwable $e) {
-            return back()->withErrors('No se pudo tomar el pedido: '.$e->getMessage());
-        }
-
-        $entrega = $pedido->entrega;
-        return redirect()->to('/entregas/'.$entrega->id)->with('status', 'Pedido asignado');
+        abort(403, 'La asignación de viajes debe realizarse por Admin o Despachador.');
     }
 
     public function show($id)
@@ -55,6 +30,44 @@ class EntregaController extends Controller
             abort(403);
         }
         return view('entregas.show', compact('entrega'));
+    }
+
+    // Asignar pedido a un motociclista (Admin/Despachador)
+    public function assign(Request $request, $pedidoId)
+    {
+        $pedido = Pedido::findOrFail($pedidoId);
+        if ($pedido->status !== 'pendiente') {
+            return back()->withErrors('El pedido ya no está disponible.');
+        }
+
+        // Validar que el asignado sea un usuario con rol Motociclista
+        $data = $request->validate([
+            'motociclista_id' => ['required', 'integer', 'exists:users,id'],
+        ]);
+        $mot = User::with('role')->findOrFail($data['motociclista_id']);
+        if (optional($mot->role)->name !== 'Motociclista') {
+            return back()->withErrors('El usuario seleccionado no es Motociclista.');
+        }
+
+        try {
+            DB::transaction(function () use ($pedido, $mot) {
+                if ($pedido->entrega()->exists()) {
+                    abort(422, 'El pedido ya fue asignado.');
+                }
+                $pedido->status = 'en_progreso';
+                $pedido->save();
+
+                Entrega::create([
+                    'pedido_id' => $pedido->id,
+                    'motociclista_id' => $mot->id,
+                    'status' => 'en_progreso',
+                ]);
+            });
+        } catch (\Throwable $e) {
+            return back()->withErrors('No se pudo asignar: '.$e->getMessage());
+        }
+
+        return back()->with('status', 'Pedido asignado a '.$mot->name);
     }
 
     public function updateStatus(StoreEntregaRequest $request, $id)

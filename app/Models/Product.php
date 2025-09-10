@@ -11,7 +11,7 @@ class Product extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'price', 'stock'];
+    protected $fillable = ['name', 'price', 'cost', 'stock', 'hidden'];
 
     public function inventory(): HasOne
     {

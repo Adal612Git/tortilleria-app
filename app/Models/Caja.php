@@ -12,7 +12,7 @@ class Caja extends Model
     use HasFactory;
 
     protected $fillable = [
-        'opened_by', 'opened_at', 'closed_by', 'closed_at',
+        'opened_by', 'opened_at', 'opening_fund', 'closed_by', 'closed_at',
         'total_in', 'total_out', 'status',
     ];
 

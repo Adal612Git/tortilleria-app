@@ -23,7 +23,9 @@ class PedidoController extends Controller
             return view('dashboard.pedidos', compact('pedidos', 'status'));
         }
 
-        return view('pedidos.index', compact('pedidos', 'status'));
+        // Para despachador: pasar lista de productos visibles para sumar con botones
+        $products = \App\Models\Product::where('hidden', false)->orderBy('name')->get(['id','name','price']);
+        return view('pedidos.index', compact('pedidos', 'status', 'products'));
     }
 
     public function store(StorePedidoRequest $request)

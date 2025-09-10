@@ -15,7 +15,10 @@ class InventoryController extends Controller
 {
     public function index()
     {
-        $inventories = Inventory::with('product')->orderBy(Product::select('name')->whereColumn('products.id', 'inventories.product_id'))->get();
+        $inventories = Inventory::with('product')
+            ->whereHas('product', fn($q) => $q->where('hidden', false))
+            ->orderBy(Product::select('name')->whereColumn('products.id', 'inventories.product_id'))
+            ->get();
         $user = Auth::user();
         $roleName = optional($user->role)->name;
         $canManage = in_array($roleName, ['Dueño', 'Admin'], true);

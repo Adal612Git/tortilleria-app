@@ -28,7 +28,7 @@
                     default => 'bg-white'
                 };
             @endphp
-            <div class="border rounded p-4 {{ $color }}">
+            <div class="border rounded p-4 bg-secondary">
                 <div class="font-medium">{{ $p->cliente }}</div>
                 <div class="text-sm text-gray-600">{{ $p->direccion }}</div>
                 <div class="text-sm text-gray-600">Total: $ {{ number_format($p->total, 2) }}</div>
@@ -55,4 +55,3 @@
     }, 10000);
 </script>
 @endsection
-

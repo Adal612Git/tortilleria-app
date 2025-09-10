@@ -18,10 +18,15 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
+            'throttle.logins' => \App\Http\Middleware\ThrottleLogins::class,
         ]);
     })
     ->withSchedule(function (Schedule $schedule): void {
         $schedule->command('backup:sqlite')->dailyAt('00:00');
+        // Enviar reporte semanal cada lunes a las 08:00
+        $schedule->call(function () {
+            \App\Jobs\SendWeeklyReport::dispatch();
+        })->weeklyOn(1, '08:00');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

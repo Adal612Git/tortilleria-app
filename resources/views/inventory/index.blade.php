@@ -16,25 +16,9 @@
         <div class="alert-error mb-4">{{ $errors->first() }}</div>
     @endif
 
-    @if ($canManage)
-        <div class="mb-6 p-4 bg-white border rounded">
-            <h2 class="font-medium mb-3">Conversión Masa → Totopos</h2>
-            <form method="POST" action="{{ url('/inventario/conversion') }}" class="flex items-end gap-2">
-                @csrf
-                <div>
-                    <label class="block text-sm text-gray-600">Cantidad</label>
-                    <input type="number" name="quantity" min="1" required class="border rounded px-2 py-1">
-                </div>
-                <div class="flex-1">
-                    <label class="block text-sm text-gray-600">Descripción (opcional)</label>
-                    <input type="text" name="description" class="border rounded px-2 py-1 w-full">
-                </div>
-                <button class="btn-app btn-accent-app">Convertir</button>
-            </form>
-        </div>
-    @endif
+    {{-- Conversión eliminada según requerimiento --}}
 
-    <div class="overflow-x-auto bg-white border rounded">
+    <div class="overflow-x-auto bg-secondary border rounded">
         <table class="min-w-full">
             <thead>
             <tr class="bg-gray-100 text-left text-sm text-gray-700">

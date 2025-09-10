@@ -13,7 +13,7 @@
             <div class="text-gray-500">Total</div>
             <div class="text-2xl font-bold">$ {{ number_format($total, 2) }}</div>
         </div>
-        <div class="overflow-x-auto bg-white border rounded">
+    <div class="overflow-x-auto bg-secondary border rounded">
             <table class="min-w-full">
                 <thead>
                     <tr class="bg-gray-100 text-left text-sm text-gray-700">
@@ -38,4 +38,3 @@
     @endif
 </div>
 @endsection
-
