@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\InventoryController;
@@ -14,9 +15,8 @@ use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\AccountingController;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// Redirige la ruta raíz al login
+Route::redirect('/', '/login');
 
 Route::get('/login', function () {
     return view('auth.login');
@@ -25,19 +25,36 @@ Route::get('/login', function () {
 Route::post('/login', [LoginController::class, 'login'])->middleware('throttle.logins');
 Route::post('/logout', [LoginController::class, 'logout'])->middleware('auth');
 
+// Debug temporal: datos del usuario autenticado (quitar en producción)
+Route::middleware('auth')->get('/debug/me', function () {
+    $u = Auth::user()->load('role');
+    return response()->json([
+        'id' => $u->id,
+        'email' => $u->email,
+        'role_id' => $u->role_id,
+        'role_name' => optional($u->role)->name,
+    ]);
+});
+
+// Debug temporal para validar middleware de rol
+Route::middleware(['auth', 'role:Admin,Dueño,Despachador,Caja'])->get('/debug/check', function () {
+    return response()->json(['ok' => true]);
+});
+
 // Password reset (send email with reset link)
 Route::post('/password/email', [PasswordResetController::class, 'sendResetLink'])
     ->name('password.email');
 
-Route::view('/dashboard/dueno', 'dashboard.dueno');
-Route::view('/dashboard/admin', 'dashboard.admin');
-Route::view('/dashboard/despacho', 'dashboard.despacho');
-Route::view('/dashboard/moto', 'dashboard.moto');
+// Dashboards por rol (protegidos)
+Route::view('/dashboard/dueno', 'dashboard.dueno')->middleware(['auth', 'role:Dueño']);
+Route::view('/dashboard/admin', 'dashboard.admin')->middleware(['auth', 'role:Admin']);
+Route::view('/dashboard/despacho', 'dashboard.despacho')->middleware(['auth', 'role:Despachador']);
+Route::view('/dashboard/moto', 'dashboard.moto')->middleware(['auth', 'role:Motociclista']);
 
 // Inventario y Kardex
 Route::middleware('auth')->group(function () {
-    // Inventario: sólo Admin puede ver/gestionar
-    Route::middleware('role:Admin')->group(function () {
+    // Inventario: Dueño y Admin pueden ver/gestionar
+    Route::middleware('role:Admin,Dueño')->group(function () {
         Route::get('/inventario', [InventoryController::class, 'index']);
         Route::post('/inventario/entrada', [InventoryController::class, 'addEntry']);
         Route::post('/inventario/salida', [InventoryController::class, 'addExit']);
@@ -54,8 +71,8 @@ Route::middleware(['auth', 'role:Despachador,Motociclista'])->group(function () 
     Route::post('/ventas', [VentaController::class, 'store']);
 });
 
-// Dashboard accesible para Admin/Dueño/Despachador (y Caja si existe)
-Route::middleware(['auth', 'role:Admin,Dueño,Despachador,Caja'])->group(function () {
+// Dashboard principal para Admin y Dueño
+Route::middleware(['auth', 'role:Admin,Dueño'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index']);
 });
 

@@ -28,10 +28,10 @@ class TestUsersSeeder extends Seeder
 
         if (isset($roles['Motociclista'])) {
             DB::table('users')->updateOrInsert(
-                ['email' => 'moto@local.test'],
+                ['email' => 'motociclista@local.test'],
                 [
                     'name' => 'Motociclista',
-                    'email' => 'moto@local.test',
+                    'email' => 'motociclista@local.test',
                     'password' => Hash::make('123456'),
                     'role_id' => $roles['Motociclista'],
                     'created_at' => now(),
@@ -41,4 +41,3 @@ class TestUsersSeeder extends Seeder
         }
     }
 }
-

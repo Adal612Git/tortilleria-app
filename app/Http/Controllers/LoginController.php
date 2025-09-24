@@ -46,13 +46,14 @@ class LoginController extends Controller
     {
         $role = optional($user->role)->name;
 
-        // Redirigir a /dashboard para Admin, Caja (si existe) y Despachador
-        if (in_array($role, ['Admin', 'Caja', 'Despachador', 'Dueño'], true)) {
-            return redirect('/dashboard');
-        }
-
-        // Otros roles mantienen comportamiento previo
+        // Redirecciones por rol
         switch ($role) {
+            case 'Admin':
+                return redirect('/dashboard');
+            case 'Dueño':
+                return redirect('/dashboard');
+            case 'Despachador':
+                return redirect('/pos');
             case 'Motociclista':
                 return redirect('/dashboard/moto');
             default:

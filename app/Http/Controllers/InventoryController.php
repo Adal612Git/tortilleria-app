@@ -6,6 +6,7 @@ use App\Models\Inventory;
 use App\Models\Kardex;
 use App\Models\Product;
 use App\Http\Requests\InventoryMovementRequest;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;

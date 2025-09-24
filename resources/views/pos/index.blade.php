@@ -18,11 +18,11 @@
             <div class="bg-secondary border rounded p-4 flex flex-col items-center">
                 <div class="text-lg font-semibold">{{ $p->name }}</div>
                 <div class="text-gray-600 mb-3">$ {{ number_format($p->price, 2) }}</div>
-                <form method="POST" action="{{ url('/ventas') }}" class="w-full">
+                <form method="POST" action="{{ url('/ventas') }}" class="w-full pos-sale-form">
                     @csrf
                     <input type="hidden" name="product_id" value="{{ $p->id }}">
                     <div class="flex items-center gap-2 mb-3">
-                        <input type="number" name="quantity" min="1" value="1" class="border rounded px-2 py-1 w-full" />
+                        <input type="number" name="quantity" min="1" value="0" class="border rounded px-2 py-1 w-full" />
                     </div>
                     <button class="w-full btn-app btn-secondary-app">Registrar venta</button>
                 </form>
@@ -31,5 +31,20 @@
     </div>
 
     <a href="{{ url('/caja') }}" class="text-blue-600 hover:underline">Ir a Caja</a>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Tras enviar una venta, restablece el campo cantidad a 0
+            document.querySelectorAll('form.pos-sale-form').forEach(form => {
+                form.addEventListener('submit', () => {
+                    const qty = form.querySelector('input[name="quantity"]');
+                    if (qty) {
+                        // Pequeño retraso para no interferir con validación nativa
+                        setTimeout(() => { qty.value = 0; }, 10);
+                    }
+                });
+            });
+        });
+    </script>
 </div>
 @endsection
