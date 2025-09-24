@@ -30,10 +30,13 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 
 # Install PHP dependencies
 COPY composer.json composer.lock ./
-RUN composer install --no-interaction --prefer-dist --optimize-autoloader
+RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts
 
 # Copy the rest of the application code
 COPY . .
+
+# Re-run Composer without skipping scripts now that the full application is present
+RUN composer install --no-interaction --prefer-dist --optimize-autoloader
 
 EXPOSE 8080
 
