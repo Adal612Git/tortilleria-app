@@ -14,13 +14,13 @@ RUN apt-get update \
     && a2enmod rewrite \
     && rm -rf /var/lib/apt/lists/*
 
-# Configure Apache to serve the Laravel public directory and listen on port 8080
+# Configure Apache to serve the Laravel public directory and listen on the dynamic Koyeb port
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
-ENV APACHE_LISTEN_PORT=8080
+ENV PORT=8000
 RUN sed -ri "s!/var/www/html!${APACHE_DOCUMENT_ROOT}!g" /etc/apache2/sites-available/000-default.conf \
     && sed -ri "s!<Directory /var/www/>!<Directory ${APACHE_DOCUMENT_ROOT}/>!g" /etc/apache2/apache2.conf \
-    && sed -ri "s/Listen 80/Listen ${APACHE_LISTEN_PORT}/" /etc/apache2/ports.conf \
-    && sed -ri "s/<VirtualHost \*:80>/<VirtualHost *:${APACHE_LISTEN_PORT}>/" /etc/apache2/sites-available/000-default.conf
+    && sed -i "s/80/${PORT}/g" /etc/apache2/ports.conf /etc/apache2/sites-available/000-default.conf \
+    && echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
 WORKDIR /var/www/html
 
@@ -38,6 +38,6 @@ COPY . .
 # Re-run Composer without skipping scripts now that the full application is present
 RUN composer install --no-interaction --prefer-dist --optimize-autoloader
 
-EXPOSE 8080
+EXPOSE $PORT
 
 CMD ["apache2-foreground"]
