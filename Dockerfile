@@ -8,6 +8,8 @@ RUN apt-get update \
         curl \
         libzip-dev \
         libpq-dev \
+        libonig-dev \
+        zlib1g-dev \
     && docker-php-ext-install pdo pdo_mysql pdo_pgsql mbstring zip \
     && a2enmod rewrite \
     && rm -rf /var/lib/apt/lists/*
