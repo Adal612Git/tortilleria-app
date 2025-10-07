@@ -1,0 +1,96 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+/*
+ Paleta de color (psicología aplicada para retail/food):
+ - Fondo cálido y limpio para reducir fatiga visual.
+ - Superficies blancas con bordes suaves para claridad.
+ - Primario azul confiable para acciones principales.
+ - Acento ámbar (maíz) para identidad y acciones destacadas.
+ - Secundario verde para éxito/confirmaciones.
+*/
+:root {
+  /* Bases */
+  --color-bg: #FAFAF7;         /* warm neutral 50 */
+  --color-surface: #FFFFFF;     /* cards/panels */
+  --color-ink: #0F172A;         /* slate-900 */
+  --color-muted: #64748B;       /* slate-500 */
+  --color-border: #E5E7EB;      /* gray-200 */
+
+  /* Acciones y estados */
+  --color-primary: #2563EB;     /* blue-600: confianza y foco */
+  --color-primary-700: #1D4ED8; /* hover */
+  --color-accent: #D97706;      /* amber-600: maíz/energía */
+  --color-accent-700: #B45309;  /* hover */
+  --color-secondary: #16A34A;   /* green-600: éxito */
+  --color-secondary-700: #15803D;
+  --color-warning: #F59E0B;     /* amber-500 */
+  --color-danger: #DC2626;      /* red-600 */
+  --color-info: #2563EB;        /* blue-600 */
+
+  /* Alias para compatibilidad con estilos existentes */
+  --blanco: var(--color-surface);
+  --borde: var(--color-border);
+}
+
+/* Base */
+body { font-family: var(--font-sans); background: var(--color-bg); color: var(--color-ink); }
+
+/* Utilidades basadas en la paleta (compatibles con clases usadas en vistas) */
+.bg-primary { background: var(--color-bg) !important; }
+.bg-secondary { background: var(--color-surface) !important; }
+.border { border: 1px solid var(--color-border) !important; }
+.text-muted { color: var(--color-muted) !important; }
+
+/* Inputs */
+input[type="text"], input[type="email"], input[type="password"], input[type="number"], select, textarea {
+  border: 1px solid var(--color-border);
+  border-radius: .375rem;
+  padding: .5rem .6rem;
+}
+input:focus, select:focus, textarea:focus {
+  outline: 2px solid color-mix(in oklab, var(--color-primary) 35%, transparent);
+  border-color: var(--color-primary);
+}
+
+/* Tablas */
+table thead tr { background: color-mix(in oklab, var(--color-bg) 50%, white); }
+table thead th { color: currentColor; }
+table tbody tr { background: white; }
+table tbody tr:nth-child(even) { background: color-mix(in oklab, var(--color-bg) 70%, white); }
+table, th, td { border-color: var(--color-border); }
+
+/* Alertas */
+.alert-success { background: color-mix(in oklab, var(--color-secondary) 20%, white); color: #064e3b; border: 1px solid color-mix(in oklab, var(--color-secondary) 40%, white); border-radius: .375rem; padding: .75rem; }
+.alert-error { background: color-mix(in oklab, var(--color-danger) 15%, white); color: #7f1d1d; border: 1px solid var(--color-danger); border-radius: .375rem; padding: .75rem; }
+.alert-warning { background: color-mix(in oklab, var(--color-warning) 20%, white); color: #4a3000; border: 1px solid color-mix(in oklab, var(--color-warning) 50%, white); border-radius: .375rem; padding: .75rem; }
+.alert-info { background: color-mix(in oklab, var(--color-primary) 20%, white); color: #0c4a6e; border: 1px solid color-mix(in oklab, var(--color-primary) 45%, white); border-radius: .375rem; padding: .75rem; }
+
+/* Botones App (opcional para vistas que lo usen) */
+.btn-app { display:inline-block; font-weight:600; padding:.5rem 1rem; border-radius:.5rem; border:2px solid transparent; cursor:pointer; transition:transform .05s ease, box-shadow .15s ease, background .15s ease; text-decoration:none; }
+.btn-app:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,.12); }
+.btn-secondary-app { background: var(--color-primary); color: white; }
+.btn-secondary-app:hover { background: var(--color-primary-700); }
+.btn-accent-app { background: var(--color-accent); color: white; }
+.btn-accent-app:hover { background: var(--color-accent-700); }
+.btn-success-app { background: var(--color-secondary); color: white; }
+.btn-success-app:hover { background: var(--color-secondary-700); }
+.btn-warning-app { background: var(--color-warning); color: #111827; }
+.btn-outline-app { background: transparent; color: var(--color-primary); border-color: var(--color-primary); }
+.btn-outline-app:hover { background: color-mix(in oklab, var(--color-primary) 12%, white); }
+.btn-danger-app { background: var(--color-danger); color: white; }
+
+/* Chips de navegación personalizados */
+.nav-chip { display:inline-block; padding:6px 12px; border-radius:10px; border:1px solid var(--color-border); background: var(--color-surface); color: inherit; text-decoration:none; font-weight:500; line-height:1; cursor:pointer; transition:background .15s ease, color .15s ease, box-shadow .15s ease, transform .05s ease; }
+.nav-chip:hover { box-shadow:0 2px 6px rgba(15,23,42,.15); transform:translateY(-1px); }
+.nav-chip.active { box-shadow: inset 0 0 0 2px var(--color-primary); }
+.btn-soft-blue, .btn-soft-green, .btn-soft-cyan, .btn-soft-amber, .btn-soft-red, .btn-soft-gray { background: var(--color-surface); border-color: var(--color-border); color: inherit; }
