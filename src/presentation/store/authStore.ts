@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { User } from '../../domain/entities/User';
-import { AuthService } from '../../aplication/services/AuthService';
+import { AuthService } from '../../application/services/AuthService';
 
 interface AuthState {
   user: User | null;
