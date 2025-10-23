@@ -3,10 +3,9 @@ export interface Product {
   name: string;
   description: string;
   price: number;
-  unit: 'kg' | 'piece' | 'dozen';
   stock: number;
-  imageUrl?: string;
-  category: 'tortilla' | 'tostada' | 'masa' | 'other';
+  unit: 'kg' | 'pieza' | 'docena';
+  category: 'tortilla' | 'tostada' | 'masa' | 'otros';
   isActive: boolean;
   createdAt: Date;
 }
