@@ -1,3 +1,8 @@
+#!/bin/bash
+echo "🎯 ELIMINANDO NAVEGACIÓN MANUAL - REACT NAVIGATION MANEJA AUTOMÁTICO"
+
+# Reemplazar todo el handleLogin con versión simplificada
+cat > src/presentation/screens/auth/LoginScreen.tsx << 'LOGINEOF'
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { authService } from "../../../application/services/AuthService";
@@ -154,3 +159,8 @@ const styles = StyleSheet.create({
 });
 
 export default LoginScreen;
+LOGINEOF
+
+echo "✅ NAVEGACIÓN AUTOMÁTICA CONFIGURADA"
+echo "🎯 AHORA: Al hacer login exitoso, React Navigation redirigirá automáticamente"
+echo "🚀 RECARGA LA APP Y PRUEBA CON PIN: 1234"

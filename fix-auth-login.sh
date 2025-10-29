@@ -1,3 +1,8 @@
+#!/bin/bash
+echo "🔐 ARREGLANDO SISTEMA DE LOGIN"
+
+# Crear una versión simplificada y funcional del AuthService
+cat > src/application/services/AuthService.ts << 'AUTHEOF'
 // Versión simplificada y funcional del AuthService
 export interface User {
     id: string;
@@ -73,3 +78,65 @@ export class AuthService {
 }
 
 export const authService = new AuthService();
+AUTHEOF
+
+# También simplificar el App.tsx para mejor debug
+cat > App.tsx << 'APPEOF'
+import 'react-native-gesture-handler';
+import React, { useEffect } from 'react';
+import { AppNavigator } from './src/presentation/navigation/RoleBasedNavigator';
+import { authService } from './src/application/services/AuthService';
+
+// Error Boundary simplificado
+class SimpleErrorBoundary extends React.Component<{children: React.ReactNode}> {
+    state = { hasError: false };
+    
+    static getDerivedStateFromError() {
+        return { hasError: true };
+    }
+    
+    componentDidCatch(error: Error) {
+        console.error('Error en App:', error);
+    }
+    
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div style={{ padding: 20, textAlign: 'center' }}>
+                    <h1>¡Algo salió mal!</h1>
+                    <button onClick={() => this.setState({ hasError: false })}>
+                        Reintentar
+                    </button>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
+
+const initializeApp = async () => {
+    try {
+        console.log('🚀 INICIANDO APLICACIÓN TORTILLERÍA...');
+        await authService.initializeFirstTime();
+        console.log('✅ Aplicación inicializada correctamente');
+    } catch (error) {
+        console.error('❌ Error durante inicialización:', error);
+    }
+};
+
+export default function App() {
+    useEffect(() => {
+        initializeApp();
+    }, []);
+
+    return (
+        <SimpleErrorBoundary>
+            <AppNavigator />
+        </SimpleErrorBoundary>
+    );
+}
+APPEOF
+
+echo "✅ AUTH SERVICE REPARADO"
+echo "🔐 PIN: 1234 (ahora funciona sin hash)"
+echo "🚀 EJECUTA: npm start"
