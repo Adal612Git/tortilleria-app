@@ -1,75 +1,36 @@
-// Versión simplificada y funcional del AuthService
-export interface User {
-    id: string;
-    name: string;
-    email: string;
-    role: 'owner' | 'dispatcher' | 'delivery' | 'supervisor';
-    pin: string;
-    isActive: boolean;
-    createdAt: Date;
-}
+// AuthService unificado: email/contraseña con SQLite
+import { User } from '../../domain/entities/User';
+import { UserRepository } from '../../infrastructure/repositories/UserRepository';
+import { EncryptionService } from '../../core/utils/encryption';
 
 export class AuthService {
-    private currentUser: User | null = null;
-    private users: User[] = [];
+    private userRepository: UserRepository;
 
-    async initializeFirstTime() {
-        console.log('🔧 Inicializando usuario dueño...');
-        
-        // Usuario dueño con PIN simple (sin hash para desarrollo)
-        const ownerUser: User = {
-            id: 'owner_001',
-            name: 'Administrador Dueño',
-            email: 'owner@tortilleria.com',
-            role: 'owner',
-            pin: '1234', // PIN directo sin hash
-            isActive: true,
-            createdAt: new Date()
-        };
-        
-        this.users.push(ownerUser);
-        console.log('✅ Usuario dueño creado con PIN: 1234');
+    constructor() {
+        this.userRepository = new UserRepository();
     }
 
-    async login(pin: string): Promise<{ success: boolean; user?: User; message: string }> {
-        console.log('🔐 Intentando login con PIN:', pin);
-        console.log('📋 Usuarios disponibles:', this.users.map(u => ({ name: u.name, pin: u.pin })));
-        
+    // Login estándar con email y contraseña
+    async login(email: string, password: string): Promise<{ success: boolean; user?: Omit<User, 'password'>; message: string }> {
         try {
-            // Buscar usuario con el PIN exacto (sin hash)
-            const user = this.users.find(u => u.pin === pin && u.isActive);
-            
-            if (user) {
-                this.currentUser = user;
-                console.log('✅ Login exitoso:', user.name, user.role);
-                return { success: true, user, message: 'Login exitoso' };
-            } else {
-                console.log('❌ Login fallido - PIN incorrecto o usuario inactivo');
-                console.log('PIN ingresado:', pin);
-                console.log('Usuarios disponibles:', this.users.map(u => u.pin));
-                return { success: false, message: 'PIN incorrecto o usuario inactivo' };
+            const user = await this.userRepository.getUserByEmail(email);
+            if (!user || !user.isActive) {
+                return { success: false, message: 'Usuario o contraseña incorrectos' };
             }
+
+            const isValid = await EncryptionService.verifyPassword(password, user.password);
+            if (!isValid) {
+                return { success: false, message: 'Usuario o contraseña incorrectos' };
+            }
+
+            const { password: _pw, ...safeUser } = user;
+            return { success: true, user: safeUser, message: 'Login exitoso' };
         } catch (error) {
             console.error('💥 Error en login:', error);
             return { success: false, message: 'Error del sistema' };
         }
     }
-
-    logout() {
-        console.log('🚪 Logout:', this.currentUser?.name);
-        this.currentUser = null;
-    }
-
-    getCurrentUser(): User | null {
-        return this.currentUser;
-    }
-
-    hasPermission(requiredRole: User['role']): boolean {
-        if (!this.currentUser) return false;
-        
-        const roleHierarchy = { owner: 4, supervisor: 3, dispatcher: 2, delivery: 1 };
-        return roleHierarchy[this.currentUser.role] >= roleHierarchy[requiredRole];
-    }
 }
 
+// Instancia exportada por compatibilidad si se requiere inyección simple
 export const authService = new AuthService();

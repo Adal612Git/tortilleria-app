@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, ScrollView, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useProductStore } from '../../store/productStore';
 
@@ -29,49 +30,69 @@ export default function ProductFormScreen() {
       Alert.alert('Validación', 'Nombre y precio son requeridos');
       return;
     }
-    if (editing && existing) {
-      await update(existing.id, { name, description, price: parsedPrice, stock: parsedStock, category });
-    } else {
-      await add({ name, description, price: parsedPrice, stock: parsedStock, unit: 'kg', category: category as any, isActive: true });
+    try {
+      if (editing && existing) {
+        await update(existing.id, { name, description, price: parsedPrice, stock: parsedStock, category });
+      } else {
+        await add({ name, description, price: parsedPrice, stock: parsedStock, unit: 'kg', category: category as any, isActive: true });
+      }
+      navigation.goBack();
+    } catch (e: any) {
+      Alert.alert('Error', e.message ?? 'No se pudo guardar el producto');
     }
-    navigation.goBack();
   };
 
   return (
-    <ScrollView className="flex-1 bg-white" contentContainerStyle={{ padding: 16 }}>
-      <Text className="text-2xl font-bold mb-12 text-[#212121]">{editing ? 'Editar' : 'Crear'} producto</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <Text style={styles.title}>{editing ? 'Editar' : 'Crear'} producto</Text>
 
-      <View className="mb-4">
-        <Text className="text-[#212121] mb-2">Nombre</Text>
-        <TextInput className="bg-[#F1F5F9] rounded-xl px-3 py-3" value={name} onChangeText={setName} placeholder="Nombre del producto" />
-      </View>
-      <View className="mb-4">
-        <Text className="text-[#212121] mb-2">Descripción</Text>
-        <TextInput className="bg-[#F1F5F9] rounded-xl px-3 py-3" value={description} onChangeText={setDescription} placeholder="Descripción" />
-      </View>
-      <View className="mb-4">
-        <Text className="text-[#212121] mb-2">Precio</Text>
-        <TextInput className="bg-[#F1F5F9] rounded-xl px-3 py-3" value={price} onChangeText={setPrice} keyboardType="decimal-pad" placeholder="0.00" />
-      </View>
-      <View className="mb-4">
-        <Text className="text-[#212121] mb-2">Stock</Text>
-        <TextInput className="bg-[#F1F5F9] rounded-xl px-3 py-3" value={stock} onChangeText={setStock} keyboardType="number-pad" placeholder="0" />
-      </View>
-      <View className="mb-6">
-        <Text className="text-[#212121] mb-2">Categoría</Text>
-        <View className="flex-row flex-wrap">
-          {(['tortilla','tostada','masa','otros'] as const).map(cat => (
-            <TouchableOpacity key={cat} onPress={() => setCategory(cat)} className={`px-4 py-3 mr-2 mb-2 rounded-xl ${category===cat? 'bg-[#E65100]':'bg-[#F1F5F9]'}`}>
-              <Text className={`${category===cat?'text-white':'text-[#212121]'}`}>{cat}</Text>
-            </TouchableOpacity>
-          ))}
+        <View style={styles.block}>
+          <Text style={styles.label}>Nombre</Text>
+          <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Nombre del producto" placeholderTextColor="#9CA3AF" />
         </View>
-      </View>
+        <View style={styles.block}>
+          <Text style={styles.label}>Descripción</Text>
+          <TextInput style={styles.input} value={description} onChangeText={setDescription} placeholder="Descripción" placeholderTextColor="#9CA3AF" />
+        </View>
+        <View style={styles.block}>
+          <Text style={styles.label}>Precio</Text>
+          <TextInput style={styles.input} value={price} onChangeText={setPrice} keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor="#9CA3AF" />
+        </View>
+        <View style={styles.block}>
+          <Text style={styles.label}>Stock</Text>
+          <TextInput style={styles.input} value={stock} onChangeText={setStock} keyboardType="number-pad" placeholder="0" placeholderTextColor="#9CA3AF" />
+        </View>
+        <View style={styles.block}>
+          <Text style={styles.label}>Categoría</Text>
+          <View style={styles.chipsRow}>
+            {(['tortilla','tostada','masa','otros'] as const).map(cat => (
+              <TouchableOpacity key={cat} onPress={() => setCategory(cat)} style={[styles.chip, category===cat? styles.chipActive: styles.chipInactive]}>
+                <Text style={category===cat? styles.chipTextActive: styles.chipTextInactive}>{cat}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
 
-      <TouchableOpacity onPress={onSubmit} className="bg-[#E65100] py-4 rounded-xl">
-        <Text className="text-white text-center text-[16px] font-semibold">Guardar</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        <TouchableOpacity onPress={onSubmit} style={styles.saveButton}>
+          <Text style={styles.saveButtonText}>Guardar</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
+const styles = StyleSheet.create({
+  title: { fontSize: 22, fontWeight: '800', marginBottom: 24, color: '#212121' },
+  block: { marginBottom: 12 },
+  label: { color: '#212121', marginBottom: 8 },
+  input: { backgroundColor: '#F1F5F9', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12, borderWidth: 1, borderColor: '#E5E7EB' },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap' },
+  chip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, marginRight: 8, marginBottom: 8 },
+  chipActive: { backgroundColor: '#E65100' },
+  chipInactive: { backgroundColor: '#F1F5F9' },
+  chipTextActive: { color: 'white', fontWeight: '600' },
+  chipTextInactive: { color: '#212121' },
+  saveButton: { backgroundColor: '#E65100', paddingVertical: 14, borderRadius: 12 },
+  saveButtonText: { color: 'white', textAlign: 'center', fontSize: 16, fontWeight: '700' },
+});

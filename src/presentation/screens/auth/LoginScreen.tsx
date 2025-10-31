@@ -1,3 +1,6 @@
+// DEPRECADO: Esta pantalla usaba login por PIN.
+// Manteniendo el archivo solo como referencia, pero NO se usa en la navegación.
+// Ahora el login es por email/contraseña (ver: src/presentation/screens/LoginScreen.tsx)
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { authService } from "../../../application/services/AuthService";

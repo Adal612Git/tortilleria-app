@@ -4,12 +4,14 @@ import { View, Text } from 'react-native';
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
 import UserManagementScreen from '../screens/admin/UserManagementScreen';
 import ProductListScreen from '../screens/admin/ProductListScreen';
+import ReportsScreen from '../screens/ReportsScreen';
 import { Ionicons } from '@expo/vector-icons';
 
 export type AdminTabParamList = {
   Dashboard: undefined;
   Products: undefined;
   Users: undefined;
+  Reports: undefined;
 };
 
 const Tab = createBottomTabNavigator<AdminTabParamList>();
@@ -28,7 +30,9 @@ export default function AdminTabsNavigator() {
             ? 'home'
             : route.name === 'Products'
             ? 'cube'
-            : 'people';
+            : route.name === 'Users'
+            ? 'people'
+            : 'stats-chart';
           return <Ionicons name={name as any} size={size} color={color} />;
         },
       })}
@@ -36,7 +40,7 @@ export default function AdminTabsNavigator() {
       <Tab.Screen name="Dashboard" component={AdminDashboardScreen} options={{ title: 'Inicio' }} />
       <Tab.Screen name="Products" component={ProductListScreen} options={{ title: 'Productos' }} />
       <Tab.Screen name="Users" component={UserManagementScreen} options={{ title: 'Usuarios' }} />
+      <Tab.Screen name="Reports" component={ReportsScreen} options={{ title: 'Reportes' }} />
     </Tab.Navigator>
   );
 }
-

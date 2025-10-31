@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { secureCache } from "../../core/protection/SecureCache";
 import { logger } from "../../core/protection/Logger";
+import { useAuthStore } from "../store/authStore";
 import { anomalyDetector } from "../../core/protection/AnomalyDetector";
 
 interface DeliveryOrder {
@@ -207,12 +209,21 @@ const DeliveryDashboard = () => {
         }
     };
 
+    const { logout } = useAuthStore();
+
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <Text style={styles.title}>Repartidor</Text>
-                <Text style={styles.subtitle}>Gestión de Pedidos</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View>
+                        <Text style={styles.title}>Repartidor</Text>
+                        <Text style={styles.subtitle}>Gestión de Pedidos</Text>
+                    </View>
+                    <TouchableOpacity onPress={logout} style={{ backgroundColor: '#F1F5F9', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                        <Text style={{ color: '#1F2937', fontWeight: '600' }}>Salir</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
 
             {/* Tabs */}
@@ -262,7 +273,7 @@ const DeliveryDashboard = () => {
                     </View>
                 }
             />
-        </View>
+        </SafeAreaView>
     );
 };
 

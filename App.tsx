@@ -1,7 +1,10 @@
 import 'react-native-gesture-handler';
 import React, { useEffect } from 'react';
-import { AppNavigator } from './src/presentation/navigation/RoleBasedNavigator';
-import { authService } from './src/application/services/AuthService';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AppNavigator } from './src/presentation/navigation/AppNavigator';
+import { StatusBar } from 'expo-status-bar';
+import { DatabaseInitService } from './src/application/services/DatabaseInitService';
 
 // Error Boundary simplificado
 class SimpleErrorBoundary extends React.Component<{children: React.ReactNode}> {
@@ -18,12 +21,12 @@ class SimpleErrorBoundary extends React.Component<{children: React.ReactNode}> {
     render() {
         if (this.state.hasError) {
             return (
-                <div style={{ padding: 20, textAlign: 'center' }}>
-                    <h1>¡Algo salió mal!</h1>
-                    <button onClick={() => this.setState({ hasError: false })}>
-                        Reintentar
-                    </button>
-                </div>
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+                    <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 12 }}>¡Algo salió mal!</Text>
+                    <TouchableOpacity onPress={() => this.setState({ hasError: false })} style={{ paddingVertical: 12, paddingHorizontal: 20, backgroundColor: '#1E40AF', borderRadius: 8 }}>
+                        <Text style={{ color: 'white', fontWeight: '600' }}>Reintentar</Text>
+                    </TouchableOpacity>
+                </View>
             );
         }
         return this.props.children;
@@ -33,8 +36,9 @@ class SimpleErrorBoundary extends React.Component<{children: React.ReactNode}> {
 const initializeApp = async () => {
     try {
         console.log('🚀 INICIANDO APLICACIÓN TORTILLERÍA...');
-        await authService.initializeFirstTime();
-        console.log('✅ Aplicación inicializada correctamente');
+        const init = new DatabaseInitService();
+        const res = await init.initializeApp();
+        console.log(`✅ ${res.message}`);
     } catch (error) {
         console.error('❌ Error durante inicialización:', error);
     }
@@ -47,7 +51,10 @@ export default function App() {
 
     return (
         <SimpleErrorBoundary>
-            <AppNavigator />
+            <SafeAreaProvider>
+                <StatusBar style="dark" />
+                <AppNavigator />
+            </SafeAreaProvider>
         </SimpleErrorBoundary>
     );
 }

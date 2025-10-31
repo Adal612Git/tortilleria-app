@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function InventoryScreen() {
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
             <Text style={styles.title}>Inventario</Text>
             <Text>Gestión de inventario pronto...</Text>
-        </View>
+        </SafeAreaView>
     );
 }
 

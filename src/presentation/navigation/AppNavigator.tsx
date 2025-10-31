@@ -3,9 +3,11 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { View, Text } from 'react-native';
 import { useAuthStore } from '../store/authStore';
-import LoginScreen from '../screens/auth/LoginScreen';
+// Unificación: usar el Login por email/contraseña
+import LoginScreen from '../screens/LoginScreen';
 import AdminNavigator from './AdminNavigator';
 import EmployeeNavigator from './EmployeeNavigator';
+import DeliveryDashboard from '../screens/DeliveryDashboard';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -16,18 +18,12 @@ export type RootStackParamList = {
 
 const Stack = createStackNavigator<RootStackParamList>();
 
-// Navigators temporales
-const TempEmployeeNavigator = undefined as any;
-
-const TempDeliveryNavigator = () => (
-  <View className="flex-1 justify-center items-center bg-white">
-    <Text className="text-2xl font-bold text-gray-900 mb-2">Pantalla Repartidor</Text>
-    <Text className="text-gray-600">Próximamente...</Text>
-  </View>
-);
+// Nota: El flujo de repartidor usa la pantalla DeliveryDashboard simple.
 
 export function AppNavigator() {
   const { user } = useAuthStore();
+
+  const isValidRole = user && ['admin','empleado','repartidor'].includes((user as any).role);
 
   const getInitialRoute = () => {
     if (!user) return 'Login';
@@ -46,7 +42,7 @@ export function AppNavigator() {
 
   return (
     <NavigationContainer>
-      {!user ? (
+      {!user || !isValidRole ? (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Login" component={LoginScreen} />
         </Stack.Navigator>
@@ -60,7 +56,7 @@ export function AppNavigator() {
         </Stack.Navigator>
       ) : (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Delivery" component={TempDeliveryNavigator} />
+          <Stack.Screen name="Delivery" component={DeliveryDashboard} />
         </Stack.Navigator>
       )}
     </NavigationContainer>

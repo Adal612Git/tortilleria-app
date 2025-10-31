@@ -113,6 +113,25 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      version: 2,
+      migrate: async (persistedState: any, version: number) => {
+        // Resetear sesión de versiones anteriores o roles inválidos
+        const allowedRoles = ['admin', 'empleado', 'repartidor'];
+        const user = persistedState?.state?.user ?? persistedState?.user;
+        const role = user?.role;
+        const invalidRole = role && !allowedRoles.includes(role);
+        if (version < 2 || invalidRole) {
+          const base = persistedState?.state ?? persistedState ?? {};
+          return {
+            ...base,
+            user: null,
+            error: null,
+            loginAttempts: 0,
+            lastAttempt: null,
+          };
+        }
+        return persistedState;
+      },
     }
   )
 );

@@ -1,5 +1,6 @@
 import { UserRepository } from '../../infrastructure/repositories/UserRepository';
 import { EncryptionService } from '../../core/utils/encryption';
+import { DemoDataService } from './DemoDataService';
 
 export class DatabaseInitService {
   private userRepository: UserRepository;
@@ -33,13 +34,16 @@ export class DatabaseInitService {
         }
         
         console.log('✅ Usuarios parecen correctos');
+        // Semilla de ventas demo si no hay suficientes
+        await new DemoDataService().seedDemoSalesIfEmpty(3);
         return { success: true, message: 'App lista' };
       }
       
       // 3. SI NO HAY USUARIOS, CREARLOS
       console.log('👤 CREANDO USUARIOS POR DEFECTO...');
       await this.createDefaultUsers();
-      
+      // Semilla de ventas demo
+      await new DemoDataService().seedDemoSalesIfEmpty(3);
       return { success: true, message: 'App lista con usuarios nuevos' };
       
     } catch (error: any) {
