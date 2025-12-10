@@ -1,16 +1,20 @@
 import * as Crypto from 'expo-crypto';
 
+export async function hashPassword(password: string): Promise<string> {
+  return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, password);
+}
+
+export async function comparePassword(password: string, hashedPassword: string): Promise<boolean> {
+  const digest = await hashPassword(password);
+  return digest === hashedPassword;
+}
+
 export class EncryptionService {
-  static async hashPassword(password: string): Promise<string> {
-    const digest = await Crypto.digestStringAsync(
-      Crypto.CryptoDigestAlgorithm.SHA256,
-      password
-    );
-    return digest;
+  static hashPassword(password: string) {
+    return hashPassword(password);
   }
 
-  static async verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
-    const hashedInput = await this.hashPassword(password);
-    return hashedInput === hashedPassword;
+  static verifyPassword(password: string, hashedPassword: string) {
+    return comparePassword(password, hashedPassword);
   }
 }

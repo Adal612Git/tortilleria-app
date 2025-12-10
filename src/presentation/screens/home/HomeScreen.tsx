@@ -213,17 +213,17 @@ export default function HomeScreen() {
           <Text style={styles.profileTitle}>📋 Información de Perfil</Text>
           
           <View style={styles.profileRow}>
-            <Text>🧑</Text>
+            <Text className="dashboard-icon">🧑</Text>
             <Text style={styles.profileText}>Rol: {getRoleDisplayName()}</Text>
           </View>
           
           <View style={styles.profileRow}>
-            <Text>📧</Text>
+            <Text className="dashboard-icon">📧</Text>
             <Text style={styles.profileText}>Email: {user?.email}</Text>
           </View>
           
           <View style={styles.profileRow}>
-            <Text>🕒</Text>
+            <Text className="dashboard-icon">🕒</Text>
             <Text style={styles.profileText}>Último acceso: {new Date().toLocaleDateString('es-MX')}</Text>
           </View>
         </View>
@@ -261,7 +261,7 @@ export default function HomeScreen() {
             style={[styles.actionButton, { backgroundColor: '#dbeafe' }]}
             onPress={() => handleQuickAction('Ver Productos')}
           >
-            <Text>🧺</Text>
+            <Text className="dashboard-icon">🧺</Text>
             <Text style={[styles.actionText, { color: '#1e40af' }]}>Ver Productos</Text>
           </TouchableOpacity>
           
@@ -269,7 +269,7 @@ export default function HomeScreen() {
             style={[styles.actionButton, { backgroundColor: '#fef3c7' }]}
             onPress={() => handleQuickAction('Gestionar Ventas')}
           >
-            <Text>💰</Text>
+            <Text className="dashboard-icon">💰</Text>
             <Text style={[styles.actionText, { color: '#92400e' }]}>Gestionar Ventas</Text>
           </TouchableOpacity>
           
@@ -277,7 +277,7 @@ export default function HomeScreen() {
             style={[styles.actionButton, { backgroundColor: '#ffedd5' }]}
             onPress={() => handleQuickAction('Control de Inventario')}
           >
-            <Text>📦</Text>
+            <Text className="dashboard-icon">📦</Text>
             <Text style={[styles.actionText, { color: '#9a3412' }]}>Control de Inventario</Text>
           </TouchableOpacity>
         </View>

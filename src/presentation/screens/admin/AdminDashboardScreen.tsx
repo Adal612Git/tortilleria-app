@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../../store/authStore';
@@ -70,10 +70,10 @@ export default function AdminDashboardScreen() {
                 style={[styles.card, { backgroundColor: mapColor(card.color) }]}
                 onPress={() => navigation.navigate(card.screen)}
               >
-                <Text style={styles.cardIcon}>{card.icon}</Text>
+                <Text style={styles.cardIcon} className="dashboard-icon">{card.icon}</Text>
                 <View>
-                  <Text style={styles.cardTitle}>{card.title}</Text>
-                  <Text style={styles.cardDescription}>{card.description}</Text>
+                  <Text style={styles.cardTitle} className="dashboard-card-title">{card.title}</Text>
+                  <Text style={styles.cardDescription} className="dashboard-card-subtitle">{card.description}</Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -121,13 +121,15 @@ const styles = StyleSheet.create({
   headerSubtitle: { color: '#6B7280', marginTop: 4 },
   headerButton: { backgroundColor: '#F3F4F6', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB' },
   headerButtonText: { color: '#111827', fontWeight: '700' },
-  content: { paddingHorizontal: 16, paddingVertical: 16 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -8 },
-  gridItem: { width: '50%', paddingHorizontal: 8, marginBottom: 16 },
-  card: { borderRadius: 16, padding: 16, aspectRatio: 1, justifyContent: 'space-between', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 5 },
-  cardIcon: { fontSize: 28 },
-  cardTitle: { color: 'white', fontSize: 16, fontWeight: '800', marginTop: 8 },
-  cardDescription: { color: 'white', opacity: 0.9, fontSize: 12, marginTop: 4 },
+
+  content: { paddingHorizontal: 24, paddingVertical: 24, width: '100%', maxWidth: 1280, alignSelf: 'center' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  gridItem: { width: '48%', paddingHorizontal: 8, marginBottom: 20, minWidth: 280, maxWidth: 360 },
+  card: { borderRadius: 18, padding: 18, minHeight: 180, maxHeight: 220, justifyContent: 'space-between', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 5 },
+  cardIcon: { alignSelf: 'flex-start', marginBottom: 12 },
+  cardTitle: { color: 'white', fontWeight: '800', marginBottom: 4, fontSize: Platform.OS === 'web' ? undefined : 18 },
+  cardDescription: { color: 'white', opacity: 0.9, fontSize: Platform.OS === 'web' ? undefined : 13 },
+
   summaryCard: { backgroundColor: 'white', borderRadius: 16, padding: 16 },
   summaryTitle: { fontSize: 18, fontWeight: '800', color: '#111827', marginBottom: 12 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },

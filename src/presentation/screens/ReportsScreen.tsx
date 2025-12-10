@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DatabaseService } from '../../infrastructure/database/DatabaseService';
 import BarChart from '../components/charts/BarChart';
+import { useFocusEffect } from '@react-navigation/native';
 
 type Summary = {
   todayRevenue: number;
@@ -57,7 +58,7 @@ export default function ReportsScreen() {
     return { start, end };
   };
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const db = await DatabaseService.getInstance().getDatabase();
     const { start, end } = getRange();
 
@@ -114,9 +115,14 @@ export default function ReportsScreen() {
       byHour[h] += Number(r.totalPrice || 0);
     }
     setHourlySeries(byHour.map((v, h) => ({ hour: h, revenue: Number(v.toFixed(2)) })));
-  };
+  }, [filter, rangeStart, rangeEnd]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   const last7Chart = useMemo(() => dailySeries.map(d => ({ label: `${d.date.getDate()}/${d.date.getMonth()+1}`, value: d.revenue })), [dailySeries]);
   const hourlyChart = useMemo(() => hourlySeries.map(h => ({ label: String(h.hour), value: h.revenue })), [hourlySeries]);

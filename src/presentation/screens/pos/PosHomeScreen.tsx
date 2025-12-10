@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 
@@ -18,10 +18,10 @@ export default function PosHomeScreen() {
       <View style={styles.grid}>
         {actions.map((a, i) => (
           <TouchableOpacity key={i} style={[styles.card, { backgroundColor: a.color }]} onPress={a.onPress}>
-            <Text style={styles.icon}>{a.icon}</Text>
+            <Text style={styles.icon} className="dashboard-icon">{a.icon}</Text>
             <View>
-              <Text style={styles.cardTitle}>{a.title}</Text>
-              <Text style={styles.cardSubtitle}>{a.subtitle}</Text>
+              <Text style={styles.cardTitle} className="dashboard-card-title">{a.title}</Text>
+              <Text style={styles.cardSubtitle} className="dashboard-card-subtitle">{a.subtitle}</Text>
             </View>
           </TouchableOpacity>
         ))}
@@ -33,10 +33,10 @@ export default function PosHomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC', padding: 16 },
   title: { fontSize: 20, fontWeight: '800', color: '#111827', marginBottom: 12 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  card: { borderRadius: 16, padding: 16, width: '48%', aspectRatio: 1, justifyContent: 'space-between' },
-  icon: { fontSize: 28 },
-  cardTitle: { color: 'white', fontWeight: '800', fontSize: 16 },
-  cardSubtitle: { color: 'white', opacity: 0.9 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  card: { borderRadius: 16, padding: 18, width: '48%', minWidth: 280, maxWidth: 360, minHeight: 180, maxHeight: 220, justifyContent: 'space-between' },
+  icon: { alignSelf: 'flex-start', marginBottom: 12 },
+  cardTitle: { color: 'white', fontWeight: '800', fontSize: Platform.OS === 'web' ? undefined : 16 },
+  cardSubtitle: { color: 'white', opacity: 0.9, fontSize: Platform.OS === 'web' ? undefined : 13 },
 });
 

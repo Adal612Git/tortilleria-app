@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const TabletDashboard = () => {
@@ -35,17 +35,15 @@ const TabletDashboard = () => {
         {/* Métricas */}
         <View style={styles.metricsSection}>
           <Text style={styles.sectionTitle}>Métricas del Día</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.metricsContainer}>
+          <View style={styles.metricsGrid}>
               {metrics.map((metric, index) => (
                 <View key={index} style={[styles.metricCard, { backgroundColor: metric.color }]}>
-                  <Text style={styles.metricIcon}>{metric.icon}</Text>
+                  <Text style={styles.metricIcon} className="dashboard-icon">{metric.icon}</Text>
                   <Text style={styles.metricValue}>{metric.value}</Text>
-                  <Text style={styles.metricTitle}>{metric.title}</Text>
+                  <Text style={styles.metricTitle} className="dashboard-card-subtitle">{metric.title}</Text>
                 </View>
               ))}
-            </View>
-          </ScrollView>
+          </View>
         </View>
 
         {/* Acciones Rápidas */}
@@ -54,7 +52,7 @@ const TabletDashboard = () => {
           <View style={styles.actionsGrid}>
             {quickActions.map((action, index) => (
               <TouchableOpacity key={index} style={styles.actionCard}>
-                <Text style={styles.actionIcon}>{action.icon}</Text>
+                <Text style={styles.actionIcon} className="dashboard-icon">{action.icon}</Text>
                 <Text style={styles.actionTitle}>{action.title}</Text>
               </TouchableOpacity>
             ))}
@@ -108,78 +106,83 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   metricsSection: {
-    padding: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '700',
     color: '#1E293B',
     marginBottom: 16,
-    marginLeft: 8,
+    marginLeft: 4,
   },
-  metricsContainer: {
+  metricsGrid: {
     flexDirection: 'row',
-    gap: 16,
-    paddingHorizontal: 8,
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
   metricCard: {
-    padding: 20,
+    padding: 18,
     borderRadius: 16,
-    width: 160,
-    alignItems: 'center',
+    minWidth: 220,
+    maxWidth: 260,
+    flexGrow: 1,
+    marginBottom: 16,
+    alignItems: 'flex-start',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 5,
   },
   metricIcon: {
-    fontSize: 24,
     marginBottom: 8,
+    alignSelf: 'flex-start',
   },
   metricValue: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     color: 'white',
     marginBottom: 4,
   },
   metricTitle: {
-    fontSize: 14,
     color: 'white',
     fontWeight: '600',
+    fontSize: Platform.OS === 'web' ? undefined : 14,
   },
   actionsSection: {
-    padding: 16,
-    paddingTop: 0,
+    paddingHorizontal: 24,
+    paddingTop: 8,
   },
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
     justifyContent: 'space-between',
   },
   actionCard: {
     backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 12,
+    padding: 18,
+    borderRadius: 14,
     width: '48%',
-    alignItems: 'center',
+    minWidth: 280,
+    maxWidth: 340,
+    alignItems: 'flex-start',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   actionIcon: {
-    fontSize: 24,
-    marginBottom: 8,
+    marginBottom: 12,
+    alignSelf: 'flex-start',
   },
   actionTitle: {
-    fontSize: 14,
+    fontSize: Platform.OS === 'web' ? undefined : 15,
     fontWeight: '600',
     color: '#374151',
-    textAlign: 'center',
+    textAlign: 'left',
   },
   activitySection: {
     padding: 16,
