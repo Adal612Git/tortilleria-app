@@ -5,7 +5,6 @@ import { EncryptionService } from '../../../core/utils/encryption';
 type MockedRepo = jest.Mocked<UserRepository>;
 
 jest.mock('expo-sqlite');
-jest.mock('expo-crypto');
 jest.mock('../../../infrastructure/repositories/UserRepository');
 jest.mock('../../../core/utils/encryption');
 
@@ -17,6 +16,7 @@ describe('AuthService', () => {
     authService = new AuthService();
     mockRepo = {
       getUserByEmail: jest.fn(),
+      migrateLegacyPasswords: jest.fn().mockResolvedValue(undefined),
     } as unknown as MockedRepo;
     (authService as any).userRepository = mockRepo;
   });
@@ -40,6 +40,7 @@ describe('AuthService', () => {
       expect(result.success).toBe(true);
       expect(result.user).toMatchObject({ id: 1, email: baseUser.email, role: 'admin' });
       expect(result.user).not.toHaveProperty('password');
+      expect(mockRepo.migrateLegacyPasswords).toHaveBeenCalled();
     });
 
     it('returns failure when user does not exist', async () => {

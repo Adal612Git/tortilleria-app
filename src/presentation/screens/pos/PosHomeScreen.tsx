@@ -7,9 +7,10 @@ export default function PosHomeScreen() {
   const nav = useNavigation<any>();
 
   const actions = [
-    { title: 'Nueva Venta', subtitle: 'Punto de venta', icon: '🧾', color: '#2563EB', onPress: () => nav.navigate('Sales') },
-    { title: 'Historial', subtitle: 'Últimas ventas', icon: '🕘', color: '#7C3AED', onPress: () => nav.navigate('SalesHistory') },
-    { title: 'Reportes', subtitle: 'Estadísticas', icon: '📊', color: '#16A34A', onPress: () => nav.navigate('Reports') },
+    { title: 'Nueva Venta', subtitle: 'Punto de venta', icon: 'POS', color: '#2563EB', onPress: () => nav.navigate('Sales') },
+    { title: 'Historial', subtitle: 'Ultimas ventas', icon: 'HIST', color: '#7C3AED', onPress: () => nav.navigate('SalesHistory') },
+    { title: 'Reportes', subtitle: 'Estadisticas', icon: 'RPTS', color: '#16A34A', onPress: () => nav.navigate('Reports') },
+    { title: 'Arqueo de caja', subtitle: 'Control de efectivo', icon: 'CAJA', color: '#EA580C', onPress: () => nav.navigate('CashAudit') },
   ];
 
   return (
@@ -39,4 +40,3 @@ const styles = StyleSheet.create({
   cardTitle: { color: 'white', fontWeight: '800', fontSize: Platform.OS === 'web' ? undefined : 16 },
   cardSubtitle: { color: 'white', opacity: 0.9, fontSize: Platform.OS === 'web' ? undefined : 13 },
 });
-

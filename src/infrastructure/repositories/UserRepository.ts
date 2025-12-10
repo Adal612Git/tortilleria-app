@@ -1,5 +1,6 @@
 import { User } from '../../domain/entities/User';
 import { DatabaseService } from '../database/DatabaseService';
+import { EncryptionService, isBcryptHash } from '../../core/utils/encryption';
 
 export class UserRepository {
   private dbService: DatabaseService;
@@ -11,13 +12,16 @@ export class UserRepository {
   async createUser(user: User): Promise<number> {
     try {
       const db = await this.dbService.getDatabase();
-      
+      const storedPassword = isBcryptHash(user.password)
+        ? user.password
+        : await EncryptionService.hashPassword(user.password);
+
       const result = await db.runAsync(
         'INSERT INTO users (name, email, password, role, isActive, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [
           user.name,
           user.email,
-          user.password,
+          storedPassword,
           user.role,
           user.isActive ? 1 : 0,
           new Date().toISOString(),
@@ -86,8 +90,8 @@ export class UserRepository {
     try {
       const db = await this.dbService.getDatabase();
       
-      const fields = [];
-      const values = [];
+      const fields: string[] = [];
+      const values: any[] = [];
       
       if (updates.name !== undefined) {
         fields.push('name = ?');
@@ -100,8 +104,11 @@ export class UserRepository {
       }
       
       if (updates.password !== undefined) {
+        const storedPassword = isBcryptHash(updates.password)
+          ? updates.password
+          : await EncryptionService.hashPassword(updates.password);
         fields.push('password = ?');
-        values.push(updates.password);
+        values.push(storedPassword);
       }
       
       if (updates.role !== undefined) {
@@ -126,6 +133,20 @@ export class UserRepository {
     } catch (error) {
       console.error('Error actualizando usuario:', error);
       throw error;
+    }
+  }
+
+  async migrateLegacyPasswords(): Promise<void> {
+    const db = await this.dbService.getDatabase();
+    const rows = await db.getAllAsync<any>('SELECT id, password FROM users');
+    for (const row of rows) {
+      if (!isBcryptHash(row.password)) {
+        const hashed = await EncryptionService.hashPassword(String(row.password ?? ''));
+        await db.runAsync(
+          'UPDATE users SET password = ?, updatedAt = ? WHERE id = ?',
+          [hashed, new Date().toISOString(), row.id]
+        );
+      }
     }
   }
 

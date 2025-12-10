@@ -14,7 +14,7 @@
 - ✅ SQLite como fuente de verdad
 - ✅ Validación de credenciales local
 - ✅ Persistencia de sesión con AsyncStorage
-- ✅ Cifrado de contraseñas con expo-crypto
+- ✅ Cifrado de contraseñas con bcrypt
 
 ### 3. Seguridad
 - ✅ Contraseñas hasheadas con SHA-256
@@ -65,3 +65,4 @@
 HU2.2 - Lógica de autenticación offline ✅ COMPLETADA AL 100%
 
 La implementación cumple con todos los criterios de aceptación y sigue los principios de Clean Architecture. El sistema funciona completamente offline, es seguro y está listo para producción.
+

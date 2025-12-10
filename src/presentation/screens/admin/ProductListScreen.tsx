@@ -17,6 +17,10 @@ export default function ProductListScreen() {
     init();
   }, []);
 
+  useEffect(() => {
+    setSearch('');
+  }, [setSearch]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return products;

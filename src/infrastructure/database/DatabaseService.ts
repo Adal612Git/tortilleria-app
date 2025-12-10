@@ -68,6 +68,22 @@ export class DatabaseService {
       );
     `);
 
+
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS cash_audits (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        openingFloat REAL NOT NULL,
+        entries REAL NOT NULL,
+        exits REAL NOT NULL,
+        cashSales REAL NOT NULL,
+        expectedCash REAL NOT NULL,
+        countedCash REAL NOT NULL,
+        difference REAL NOT NULL,
+        notes TEXT,
+        createdAt TEXT NOT NULL
+      );
+    `);
+
     console.log('✅ Tablas inicializadas correctamente');
     // Migraciones de esquema para columnas faltantes
     await this.migrateSchema(db);
@@ -157,6 +173,10 @@ export class DatabaseService {
     if (!(await columnExists('sales', 'updatedAt'))) {
       console.log('🧩 Migrando sales: agregando updatedAt');
       await db.execAsync(`ALTER TABLE sales ADD COLUMN updatedAt TEXT DEFAULT (CURRENT_TIMESTAMP);`);
+    }
+    if (!(await columnExists('sales', 'paymentMethod'))) {
+      console.log('🧩 Migrando sales: agregando paymentMethod');
+      await db.execAsync(`ALTER TABLE sales ADD COLUMN paymentMethod TEXT DEFAULT 'cash';`);
     }
   }
 

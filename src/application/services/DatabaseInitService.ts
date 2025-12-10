@@ -1,6 +1,7 @@
 import { UserRepository } from '../../infrastructure/repositories/UserRepository';
-import { EncryptionService } from '../../core/utils/encryption';
+import { EncryptionService, isBcryptHash } from '../../core/utils/encryption';
 import { DemoDataService } from './DemoDataService';
+import type { User } from '../../domain/entities/User';
 
 export class DatabaseInitService {
   private userRepository: UserRepository;
@@ -11,45 +12,61 @@ export class DatabaseInitService {
 
   async initializeApp(): Promise<{ success: boolean; message: string }> {
     try {
-      console.log('🚀 INICIANDO APP - MODO EMERGENCIA...');
-      
-      // 1. Verificar si hay usuarios
+      console.log('[DB] Starting bootstrap...');
       const existingUsers = await this.userRepository.getAllUsers();
-      console.log(`📊 Usuarios encontrados: ${existingUsers.length}`);
-      
-      // 2. SI HAY USUARIOS, VERIFICAR SI ESTÁN BLOQUEADOS
+      console.log(`[DB] Users found: ${existingUsers.length}`);
+
       if (existingUsers.length > 0) {
-        console.log('🔍 Analizando estado de usuarios...');
-        
-        // Verificar el primer usuario como muestra
-        const sampleUser = existingUsers[0];
-        console.log(`🔐 Usuario muestra: ${sampleUser.email}`);
-        console.log(`   Contraseña: ${sampleUser.password} (${sampleUser.password.length} chars)`);
-        console.log(`   ¿Hasheada?: ${sampleUser.password.length === 64 ? '✅ SÍ' : '❌ NO'}`);
-        
-        // Si las contraseñas no están hasheadas, hacer RESET AUTOMÁTICO
-        if (sampleUser.password.length !== 64) {
-          console.log('🔄 CONTRASEÑAS NO HASHED - EJECUTANDO RESET AUTOMÁTICO...');
-          return await this.emergencyReset();
-        }
-        
-        console.log('✅ Usuarios parecen correctos');
-        // Semilla de ventas demo si no hay suficientes
+        const normalizedUsers = await this.ensurePasswordsAreHashed(existingUsers);
+        this.logSampleUser(normalizedUsers[0]);
         await new DemoDataService().seedDemoSalesIfEmpty(3);
         return { success: true, message: 'App lista' };
       }
-      
-      // 3. SI NO HAY USUARIOS, CREARLOS
-      console.log('👤 CREANDO USUARIOS POR DEFECTO...');
+
+      console.log('[DB] Creating default users...');
       await this.createDefaultUsers();
-      // Semilla de ventas demo
       await new DemoDataService().seedDemoSalesIfEmpty(3);
       return { success: true, message: 'App lista con usuarios nuevos' };
-      
     } catch (error: any) {
-      console.error('❌ Error crítico:', error);
+      console.error('[DB] Critical error:', error);
       return { success: false, message: `Error: ${error.message}` };
     }
+  }
+
+  private async ensurePasswordsAreHashed(users: User[]): Promise<User[]> {
+    if (!users.length) {
+      return users;
+    }
+
+    const hasPlain = users.some(user => !isBcryptHash(user.password));
+    if (!hasPlain) {
+      console.log('[DB] Existing users already use bcrypt.');
+      return users;
+    }
+
+    console.warn('[DB] Plain-text passwords detected. Migrating to bcrypt...');
+    await this.userRepository.migrateLegacyPasswords();
+    const refreshedUsers = await this.userRepository.getAllUsers();
+    const stillPlain = refreshedUsers.some(user => !isBcryptHash(user.password));
+
+    if (stillPlain) {
+      console.warn('[DB] Migration failed. Triggering emergency reset.');
+      await this.emergencyReset();
+      return await this.userRepository.getAllUsers();
+    }
+
+    console.log('[DB] Password migration completed.');
+    return refreshedUsers;
+  }
+
+  private logSampleUser(user?: User) {
+    if (!user) {
+      return;
+    }
+
+    console.log(`[DB] Sample user: ${user.email}`);
+    console.log(`[DB] Password length: ${user.password.length}`);
+    console.log(`[DB] Stored with bcrypt: ${isBcryptHash(user.password) ? 'yes' : 'no'}`);
   }
 
   private async createDefaultUsers(): Promise<void> {
@@ -67,33 +84,27 @@ export class DatabaseInitService {
           email: user.email,
           password: hashedPassword,
           role: user.role,
-          isActive: true
+          isActive: true,
         });
-        console.log(`✅ ${user.email} CREADO (ID: ${userId})`);
+        console.log(`[DB] Created ${user.email} (id ${userId})`);
       } catch (error: any) {
-        console.log(`⚠️ ${user.email} - ${error.message}`);
+        console.log(`[DB] Unable to create ${user.email}: ${error.message}`);
       }
     }
   }
 
   private async emergencyReset(): Promise<{ success: boolean; message: string }> {
     try {
-      console.log('🚨 ACTIVANDO PROTOCOLO DE EMERGENCIA...');
-      
-      // 1. Eliminar todos los usuarios
+      console.log('[DB] Emergency reset in progress...');
       const db = await this.userRepository['dbService'].getDatabase();
       await db.execAsync('DELETE FROM users');
-      console.log('✅ Todos los usuarios eliminados');
-      
-      // 2. Crear usuarios nuevos
+      console.log('[DB] Users deleted.');
       await this.createDefaultUsers();
-      
-      console.log('🎉 RESET DE EMERGENCIA COMPLETADO');
+      console.log('[DB] Emergency reset completed.');
       return { success: true, message: 'Reset de emergencia completado' };
-      
     } catch (error: any) {
-      console.error('💥 Error en reset de emergencia:', error);
-      return { success: false, message: `Reset falló: ${error.message}` };
+      console.error('[DB] Error in emergency reset:', error);
+      return { success: false, message: `Reset fallo: ${error.message}` };
     }
   }
 }

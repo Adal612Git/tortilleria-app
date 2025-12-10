@@ -1,90 +1,215 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, LayoutAnimation, UIManager, Platform, Alert, Modal, StyleSheet } from 'react-native';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  TextInput,
+  LayoutAnimation,
+  UIManager,
+  Platform,
+  Alert,
+  Modal,
+  StyleSheet,
+  ScrollView,
+  Image,
+  ListRenderItemInfo,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useProductStore } from '../../store/productStore';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
-import { Ionicons } from '@expo/vector-icons';
-import { SalesRepository } from '../../../infrastructure/repositories/SalesRepository';
-import * as Haptics from 'expo-haptics';
+import { Product } from '../../../domain/entities/Product';
+import { SalePanel } from '../../components/ui/SalePanel';
+import { PaymentConfirmationModal } from '../../components/ui/PaymentConfirmationModal';
+import { usePaymentFlow } from '../../hooks/usePaymentFlow';
+import { CheckoutService } from '../../../application/services/CheckoutService';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-export default function SalesScreen() {
-  const { products, seedIfEmpty, setSearch, search } = useProductStore();
-  const { items, addItem, increment, decrement, remove, clear, isOpen, toggle, total } = useCartStore();
-  const [payOpen, setPayOpen] = useState(false);
-  const [cash, setCash] = useState('');
-  const [quickQty, setQuickQty] = useState(1);
-  const salesRepo = new SalesRepository();
-  const { user } = useAuthStore();
+const catalogFilters = [
+  { key: 'tortilla', label: 'Tortillas' },
+  { key: 'tostada', label: 'Tostadas' },
+  { key: 'masa', label: 'Masa' },
+  { key: 'salsa', label: 'Salsas' },
+  { key: 'otros', label: 'Otros' },
+] as const;
 
-  useEffect(() => { seedIfEmpty(); }, []);
+type CatalogFilterKey = (typeof catalogFilters)[number]['key'];
+
+const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', '.'];
+const productPlaceholder = require('../../../../assets/icon.png');
+
+const matchesCategory = (product: Product, filter: CatalogFilterKey) => {
+  const name = product.name.toLowerCase();
+  if (filter === 'salsa') {
+    return product.category === 'otros' && name.includes('salsa');
+  }
+  if (filter === 'otros') {
+    return product.category === 'otros' && !name.includes('salsa');
+  }
+  return product.category === filter;
+};
+
+const formatQuantity = (value: number) => {
+  if (Number.isInteger(value)) return value.toString();
+  const normalized = parseFloat(value.toFixed(3)).toString();
+  return normalized.replace(/0+$/, '').replace(/\.$/, '');
+};
+
+export default function SalesScreen() {
+  const { products, seedIfEmpty, load } = useProductStore();
+  const { items, addItem, increment, decrement, remove, clear, isOpen, toggle, total } = useCartStore();
+  const { user, logout } = useAuthStore();
+  const [payOpen, setPayOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [processingSale, setProcessingSale] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeCategory, setActiveCategory] = useState<CatalogFilterKey>('tortilla');
+  const [saleProduct, setSaleProduct] = useState<Product | null>(null);
+  const checkoutService = useMemo(() => new CheckoutService(), []);
+  const cartTotal = useMemo(() => total(), [items, total]);
+  const payment = usePaymentFlow(cartTotal);
+
+  const ensureStockAvailability = useCallback((product: Product, requestedDelta: number) => {
+    const cartItem = items.find(i => i.productId === product.id);
+    const inCart = cartItem?.quantity ?? 0;
+    const remaining = product.stock - inCart;
+    if (requestedDelta > remaining + 1e-6) {
+      const unitLabel = product.unit === 'kg' ? 'kg' : product.unit === 'pieza' ? 'pz' : product.unit;
+      const decimals = unitLabel === 'kg' ? 3 : 0;
+      const formattedRemaining = Math.max(remaining, 0);
+      Alert.alert(
+        'Stock insuficiente',
+        `Solo quedan ${formattedRemaining.toFixed(decimals)} ${unitLabel} disponibles de ${product.name}.`
+      );
+      return false;
+    }
+    return true;
+  }, [items]);
+
+  const handleIncrement = useCallback((productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    const cartItem = items.find(i => i.productId === productId);
+    const step = cartItem?.unitAmount ?? 1;
+    if (!ensureStockAvailability(product, step)) {
+      return;
+    }
+    increment(productId, step);
+  }, [products, items, ensureStockAvailability, increment]);
+
+  useEffect(() => {
+    seedIfEmpty();
+  }, [seedIfEmpty]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(p => p.name.toLowerCase().includes(q) || (p.description ?? '').toLowerCase().includes(q));
-  }, [products, search]);
+    const term = searchTerm.trim().toLowerCase();
+    return products.filter(product => {
+      const matchesText =
+        term.length === 0 ||
+        product.name.toLowerCase().includes(term) ||
+        (product.description ?? '').toLowerCase().includes(term);
+      return matchesCategory(product, activeCategory) && matchesText;
+    });
+  }, [products, searchTerm, activeCategory]);
 
-  const handleAdd = (id: string) => {
-    const p = products.find(x => x.id === id);
-    if (!p) return;
-    for (let i = 0; i < quickQty; i++) {
-      addItem({ productId: p.id, name: p.name, price: p.price });
+  const pushItemToCart = (product: Product, quantity: number, unitLabel?: string, unitAmount?: number): boolean => {
+    const normalized = parseFloat(quantity.toFixed(3));
+    if (normalized <= 0) return false;
+    if (!ensureStockAvailability(product, normalized)) {
+      return false;
     }
+    addItem({
+      productId: product.id,
+      name: product.name,
+      price: product.price,
+      quantity: normalized,
+      unitLabel,
+      unitAmount: unitAmount ?? normalized,
+    });
     Haptics.selectionAsync();
     if (!isOpen) {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       toggle(true);
     }
+    return true;
+  };
+
+  const handleProductPress = (product: Product) => {
+    if (product.unit === 'kg') {
+      setSaleProduct(product);
+      return;
+    }
+    const label = product.unit === 'pieza' ? 'pz' : product.unit;
+    pushItemToCart(product, 1, label, 1);
+  };
+
+  const handlePanelConfirm = ({ kilos, mode }: { kilos: number; mode: 'pesos' | 'kilos' }) => {
+    if (!saleProduct) return;
+    const added = pushItemToCart(saleProduct, kilos, mode, kilos);
+    if (added) {
+      setSaleProduct(null);
+    }
   };
 
   const startPayment = () => {
     if (items.length === 0) return;
+    payment.reset();
+    setReviewOpen(false);
     setPayOpen(true);
-    setCash('');
   };
 
-  const confirmPayment = async () => {
-    const cashNum = parseFloat(cash || '0');
-    const totalNum = total();
-    if (isNaN(cashNum) || cashNum < totalNum) {
-      Alert.alert('Cobro', 'Monto insuficiente');
-      return;
-    }
+  const closePaymentModal = () => {
+    setPayOpen(false);
+    setReviewOpen(false);
+    payment.reset();
+  };
+
+  const handleSaleConfirmation = async () => {
+    if (processingSale || payment.status === 'insufficient') return;
+    setProcessingSale(true);
     try {
-      await salesRepo.recordSale(items, undefined, undefined, (user as any)?.id);
-      const change = cashNum - totalNum;
+      const result = await checkoutService.completeSale({
+        items,
+        paidAmount: payment.paidAmount,
+        userId: (user as any)?.id,
+      });
+      const change = Math.max(result.change, 0);
       Alert.alert('Venta completada', `Cambio: $${change.toFixed(2)}`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       clear();
+      payment.reset();
+      await load();
+      setReviewOpen(false);
       setPayOpen(false);
       toggle(false);
     } catch (e: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Error', e.message);
+      Alert.alert('Error', e?.message ?? 'No se pudo registrar la venta.');
+      await load();
+    } finally {
+      setProcessingSale(false);
     }
   };
 
-  const renderProduct = ({ item }: any) => (
-    <TouchableOpacity
-      style={[styles.card, { minHeight: 92 }]}
-      onPress={() => handleAdd(item.id)}
-      accessibilityRole="button"
-    >
-      <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
-      <Text style={styles.cardSubtitle} numberOfLines={1}>{item.description}</Text>
-      <View style={styles.cardRowBetween}>
-        <Text style={styles.cardPrice}>${item.price.toFixed(2)}</Text>
-        <Text style={styles.cardStock}>Stock: {item.stock}</Text>
+  const renderProduct = ({ item }: ListRenderItemInfo<Product>) => (
+    <TouchableOpacity style={styles.card} onPress={() => handleProductPress(item)} accessibilityRole="button">
+      <Image source={productPlaceholder} style={styles.productImage} resizeMode="cover" />
+      <View style={styles.cardInfo}>
+        <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
+        <Text style={styles.cardSubtitle} numberOfLines={1}>{item.description}</Text>
+        <View style={styles.cardRowBetween}>
+          <Text style={styles.cardPrice}>${item.price.toFixed(2)}</Text>
+          <Text style={styles.cardStock}>Stock: {item.stock}</Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
-
-  const { logout } = useAuthStore();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -101,35 +226,53 @@ export default function SalesScreen() {
             placeholder="Buscar producto..."
             placeholderTextColor="#9CA3AF"
             style={styles.searchInput}
-            value={search}
-            onChangeText={setSearch}
+            value={searchTerm}
+            onChangeText={setSearchTerm}
           />
         </View>
-        <View style={styles.qtyRow}>
-          {[1,5,10].map(q => (
-            <TouchableOpacity key={q} style={[styles.qtyChip, quickQty===q? styles.qtyActive: styles.qtyInactive]} onPress={() => setQuickQty(q)}>
-              <Text style={quickQty===q? styles.qtyTextActive: styles.qtyTextInactive}>x{q}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryScroll}
+        >
+          {catalogFilters.map(filter => {
+            const active = activeCategory === filter.key;
+            return (
+              <TouchableOpacity
+                key={filter.key}
+                style={[styles.categoryChip, active && styles.categoryChipActive]}
+                onPress={() => setActiveCategory(filter.key)}
+              >
+                <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>{filter.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
-      <FlatList
+      <FlatList<Product>
         data={filtered}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: 12, paddingBottom: 180 }}
+        style={styles.productList}
+        contentContainerStyle={styles.productListContent}
         numColumns={2}
         columnWrapperStyle={{ gap: 12 }}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+        showsVerticalScrollIndicator
         renderItem={(info) => (
           <View style={{ flex: 1 }}>
             {renderProduct(info)}
           </View>
         )}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>Sin productos</Text>
+            <Text style={styles.emptySubtitle}>Ajusta la busqueda o agrega inventario.</Text>
+          </View>
+        }
       />
 
-      {/* Bottom cart sheet */}
-      <View style={[styles.cartSheet, { height: isOpen ? 280 : 72 }]}>
+      <View style={[styles.cartSheet, { height: isOpen ? 320 : 72 }]} accessibilityHint="Panel del carrito">
         <TouchableOpacity
           style={styles.cartHeader}
           onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); toggle(); }}
@@ -139,7 +282,7 @@ export default function SalesScreen() {
             <Ionicons name="cart" size={20} color="#E65100" />
             <Text style={styles.cartTitle}>Carrito ({items.length})</Text>
           </View>
-          <Text style={styles.cartTotal}>${total().toFixed(2)}</Text>
+          <Text style={styles.cartTotal}>${cartTotal.toFixed(2)}</Text>
         </TouchableOpacity>
 
         {isOpen && (
@@ -150,13 +293,16 @@ export default function SalesScreen() {
               <>
                 {items.map(it => (
                   <View key={it.productId} style={styles.cartItemRow}>
-                    <Text style={styles.cartItemName} numberOfLines={1}>{it.name}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.cartItemName} numberOfLines={1}>{it.name}</Text>
+                      {it.unitLabel && <Text style={styles.cartItemUnit}>{it.unitLabel}</Text>}
+                    </View>
                     <View style={styles.rowCenter}>
-                      <TouchableOpacity style={styles.qtyBtn} onPress={() => decrement(it.productId)}>
+                      <TouchableOpacity style={styles.qtyBtn} onPress={() => decrement(it.productId, it.unitAmount)}>
                         <Text style={styles.qtyBtnText}>-</Text>
                       </TouchableOpacity>
-                      <Text style={styles.qtyText}>{it.quantity}</Text>
-                      <TouchableOpacity style={styles.qtyBtn} onPress={() => increment(it.productId)}>
+                      <Text style={styles.qtyText}>{formatQuantity(it.quantity)}</Text>
+                      <TouchableOpacity style={styles.qtyBtn} onPress={() => handleIncrement(it.productId)}>
                         <Text style={styles.qtyBtnText}>+</Text>
                       </TouchableOpacity>
                       <TouchableOpacity style={styles.removeBtn} onPress={() => remove(it.productId)}>
@@ -174,22 +320,20 @@ export default function SalesScreen() {
         )}
       </View>
 
-      {/* Payment modal */}
-      <Modal visible={payOpen} transparent animationType="slide" onRequestClose={() => setPayOpen(false)}>
+      <Modal visible={payOpen} transparent animationType="slide" onRequestClose={closePaymentModal}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.mutedCenter}>Total</Text>
-            <Text style={styles.modalBig}>${total().toFixed(2)}</Text>
+            <Text style={styles.modalBig}>${cartTotal.toFixed(2)}</Text>
             <Text style={styles.mutedCenter}>Efectivo</Text>
-            <Text style={styles.modalBig}>${cash || '0'}</Text>
+            <Text style={styles.modalBig}>${payment.input || '0'}</Text>
 
             <View style={styles.keypadRowWrap}>
-              {['1','2','3','4','5','6','7','8','9','C','0','.'].map(key => (
-                <TouchableOpacity key={key} style={styles.keypadKey}
-                  onPress={() => {
-                    if (key === 'C') setCash('');
-                    else setCash(prev => (prev + key).replace(/(^0)(?=\d)/, ''));
-                  }}
+              {keypadKeys.map(key => (
+                <TouchableOpacity
+                  key={key}
+                  style={styles.keypadKey}
+                  onPress={() => payment.handleKeyPress(key)}
                 >
                   <Text style={styles.keypadKeyText}>{key}</Text>
                 </TouchableOpacity>
@@ -197,16 +341,35 @@ export default function SalesScreen() {
             </View>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalCancel]} onPress={() => setPayOpen(false)}>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalCancel]} onPress={closePaymentModal}>
                 <Text style={styles.modalBtnText}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalConfirm]} onPress={confirmPayment}>
-                <Text style={styles.modalBtnText}>Confirmar</Text>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalConfirm]} onPress={() => setReviewOpen(true)}>
+                <Text style={styles.modalBtnText}>Revisar cobro</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
+
+      <SalePanel
+        product={saleProduct}
+        visible={!!saleProduct}
+        onClose={() => setSaleProduct(null)}
+        onConfirm={handlePanelConfirm}
+      />
+
+      <PaymentConfirmationModal
+        visible={reviewOpen}
+        total={cartTotal}
+        paid={payment.paidAmount}
+        remaining={payment.remaining}
+        change={payment.change}
+        status={payment.status}
+        processing={processingSale}
+        onCancel={() => setReviewOpen(false)}
+        onConfirm={handleSaleConfirmation}
+      />
     </SafeAreaView>
   );
 }
@@ -220,20 +383,24 @@ const styles = StyleSheet.create({
   headerButtonText: { color: '#212121', fontWeight: '700' },
   searchBox: { marginTop: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', borderRadius: 12, paddingHorizontal: 12 },
   searchInput: { flex: 1, paddingVertical: 12, paddingHorizontal: 8, fontSize: 16, color: '#212121' },
-  qtyRow: { flexDirection: 'row', marginTop: 10 },
-  qtyChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, marginRight: 8 },
-  qtyActive: { backgroundColor: '#1D4ED8' },
-  qtyInactive: { backgroundColor: '#E5E7EB' },
-  qtyTextActive: { color: 'white', fontWeight: '700' },
-  qtyTextInactive: { color: '#111827', fontWeight: '600' },
-
-  card: { backgroundColor: 'white', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E5E7EB' },
+  categoryScroll: { paddingVertical: 12, paddingRight: 16 },
+  categoryChip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999, backgroundColor: '#E2E8F0', marginRight: 10 },
+  categoryChipActive: { backgroundColor: '#0F172A' },
+  categoryChipText: { fontWeight: '700', color: '#475569', fontSize: 13 },
+  categoryChipTextActive: { color: 'white' },
+  productList: { flex: 1 },
+  productListContent: { padding: 12, paddingBottom: 260, flexGrow: 1 },
+  card: { backgroundColor: 'white', borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden' },
+  cardInfo: { padding: 12 },
+  productImage: { width: '100%', height: 90, backgroundColor: '#F8FAFC' },
   cardTitle: { color: '#212121', fontSize: 16, fontWeight: '700' },
   cardSubtitle: { color: '#757575', fontSize: 12, marginTop: 2 },
   cardRowBetween: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
   cardPrice: { color: '#388E3C', fontWeight: '700' },
   cardStock: { color: '#757575' },
-
+  emptyState: { alignItems: 'center', padding: 40 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#1F2937' },
+  emptySubtitle: { color: '#6B7280', marginTop: 4, textAlign: 'center' },
   cartSheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: 'white', borderTopWidth: 1, borderTopColor: '#E5E7EB' },
   cartHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
   rowCenter: { flexDirection: 'row', alignItems: 'center' },
@@ -241,14 +408,14 @@ const styles = StyleSheet.create({
   cartTotal: { color: '#212121', fontWeight: '800', fontSize: 16 },
   muted: { color: '#757575' },
   cartItemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
-  cartItemName: { flex: 1, marginRight: 8, color: '#212121' },
+  cartItemName: { color: '#212121', fontSize: 14, fontWeight: '600' },
+  cartItemUnit: { color: '#94A3B8', fontSize: 12 },
   qtyBtn: { backgroundColor: '#F1F5F9', width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  qtyBtnText: { fontSize: 20 },
-  qtyText: { marginHorizontal: 12, fontSize: 16, color: '#212121' },
+  qtyBtnText: { fontSize: 20, color: '#212121' },
+  qtyText: { marginHorizontal: 12, fontSize: 16, color: '#212121', minWidth: 40, textAlign: 'center' },
   removeBtn: { marginLeft: 12, backgroundColor: '#FFEBEE', width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   payButton: { backgroundColor: '#E65100', marginVertical: 8, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
   payButtonText: { color: 'white', fontWeight: '700' },
-
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: 'white', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16 },
   mutedCenter: { textAlign: 'center', color: '#757575' },
