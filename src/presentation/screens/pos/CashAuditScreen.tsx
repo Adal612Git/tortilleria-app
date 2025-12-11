@@ -1,12 +1,25 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCashAudit } from '../../hooks/useCashAudit';
 
 const formatCurrency = (value: number) => `MX$${value.toFixed(2)}`;
+const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
+const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+const formatHeaderDate = () => {
+  const now = new Date();
+  const day = dayNames[now.getDay()] ?? 'Hoy';
+  const month = monthNames[now.getMonth()] ?? '';
+  return `${day}, ${now.getDate().toString().padStart(2, '0')} ${month}`;
+};
+const formatAuditDate = (iso: string) => {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return 'Sin fecha';
+  return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')} | ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+};
 
 export default function CashAuditScreen() {
-  const { audits, loading, error, todaySales, recordAudit, refresh } = useCashAudit();
+  const { audits, loading, error, todaySales, recordAudit } = useCashAudit();
   const [openingFloat, setOpeningFloat] = useState('0');
   const [entries, setEntries] = useState('0');
   const [exits, setExits] = useState('0');
@@ -15,13 +28,12 @@ export default function CashAuditScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   const latestAudit = audits[0];
-
   const parsedOpening = parseFloat(openingFloat) || 0;
   const parsedEntries = parseFloat(entries) || 0;
   const parsedExits = parseFloat(exits) || 0;
   const parsedCounted = parseFloat(countedCash) || 0;
   const expected = parsedOpening + parsedEntries + todaySales - parsedExits;
-  const difference = parsedCounted - expected;
+  const gap = parsedCounted - expected;
 
   const summary = useMemo(
     () => [
@@ -30,12 +42,12 @@ export default function CashAuditScreen() {
       { label: 'Ventas', value: latestAudit?.cashSales ?? todaySales, accent: '#10B981' },
       { label: 'Fondo de caja', value: latestAudit?.openingFloat ?? parsedOpening, accent: '#6366F1' },
       {
-        label: 'Diferencia',
-        value: latestAudit?.difference ?? difference,
-        accent: (latestAudit?.difference ?? difference) >= 0 ? '#22C55E' : '#EF4444',
+        label: 'Resultado',
+        value: latestAudit?.difference ?? gap,
+        accent: (latestAudit?.difference ?? gap) >= 0 ? '#22C55E' : '#EF4444',
       },
     ],
-    [latestAudit, todaySales, parsedOpening, parsedEntries, parsedExits, difference]
+    [latestAudit, todaySales, parsedOpening, parsedEntries, parsedExits, gap]
   );
 
   const handleSubmit = async () => {
@@ -65,10 +77,10 @@ export default function CashAuditScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.headerRow}>
-          <Text style={styles.title}>Arqueo de caja</Text>
-          <TouchableOpacity onPress={refresh} style={styles.refreshBtn}>
-            <Text style={styles.refreshText}>Actualizar</Text>
-          </TouchableOpacity>
+          <View>
+            <Text style={styles.title}>Arqueo de caja</Text>
+            <Text style={styles.headerDate}>{formatHeaderDate()}</Text>
+          </View>
         </View>
         {error && <Text style={styles.error}>{error}</Text>}
 
@@ -79,7 +91,7 @@ export default function CashAuditScreen() {
               <Text
                 style={[
                   styles.summaryValue,
-                  item.label === 'Diferencia' ? (item.value < 0 ? styles.dangerText : styles.successText) : null,
+                  item.label === 'Resultado' ? (item.value < 0 ? styles.dangerText : styles.successText) : null,
                 ]}
               >
                 {formatCurrency(item.value)}
@@ -109,7 +121,7 @@ export default function CashAuditScreen() {
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Efectivo contado</Text>
+            <Text style={styles.fieldLabel}>Conteo en caja</Text>
             <TextInput style={styles.input} keyboardType="numeric" value={countedCash} onChangeText={setCountedCash} />
           </View>
 
@@ -124,15 +136,17 @@ export default function CashAuditScreen() {
             />
           </View>
 
-          <View style={styles.rowBetween}>
-            <Text style={styles.muted}>Efectivo esperado</Text>
-            <Text style={styles.boldText}>{formatCurrency(expected)}</Text>
-          </View>
-          <View style={styles.rowBetween}>
-            <Text style={styles.muted}>Diferencia</Text>
-            <Text style={[styles.boldText, difference < 0 ? styles.dangerText : styles.successText]}>
-              {formatCurrency(difference)}
-            </Text>
+          <View style={styles.balanceRow}>
+            <View style={styles.balanceCard}>
+              <Text style={styles.balanceLabel}>Balance proyectado</Text>
+              <Text style={styles.balanceValue}>{formatCurrency(expected)}</Text>
+            </View>
+            <View style={styles.balanceCard}>
+              <Text style={styles.balanceLabel}>Conteo final</Text>
+              <Text style={[styles.balanceValue, gap < 0 ? styles.dangerText : styles.successText]}>
+                {formatCurrency(parsedCounted)}
+              </Text>
+            </View>
           </View>
 
           <TouchableOpacity
@@ -151,25 +165,20 @@ export default function CashAuditScreen() {
           ) : audits.length === 0 ? (
             <Text style={styles.muted}>Sin registros</Text>
           ) : (
-            audits.map((audit) => (
-              <View key={audit.id} style={styles.auditRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.itemName}>{new Date(audit.createdAt).toLocaleString()}</Text>
-                  <Text style={styles.mutedSmall}>
-                    Entradas {formatCurrency(audit.entries)} - Salidas {formatCurrency(audit.exits)}
-                  </Text>
-                  <Text style={styles.mutedSmall}>
-                    Ventas {formatCurrency(audit.cashSales)} - Fondo {formatCurrency(audit.openingFloat)}
+            <View style={styles.historyList}>
+              {audits.map((audit) => (
+                <View key={audit.id} style={styles.auditCard}>
+                  <Text style={styles.auditDate}>{formatAuditDate(audit.createdAt)}</Text>
+                  <Text style={styles.auditDetail}>Entradas {formatCurrency(audit.entries)}</Text>
+                  <Text style={styles.auditDetail}>Salidas {formatCurrency(audit.exits)}</Text>
+                  <Text style={styles.auditDetail}>Ventas {formatCurrency(audit.cashSales)}</Text>
+                  <Text style={styles.auditDetail}>Fondo {formatCurrency(audit.openingFloat)}</Text>
+                  <Text style={[styles.auditResult, audit.difference < 0 ? styles.dangerText : styles.successText]}>
+                    Resultado {formatCurrency(audit.difference)}
                   </Text>
                 </View>
-                <View>
-                  <Text style={[styles.boldText, audit.difference < 0 ? styles.dangerText : styles.successText]}>
-                    {formatCurrency(audit.difference)}
-                  </Text>
-                  <Text style={styles.auditMini}>Contado {formatCurrency(audit.countedCash)}</Text>
-                </View>
-              </View>
-            ))
+              ))}
+            </View>
           )}
         </View>
       </ScrollView>
@@ -181,9 +190,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
   content: { padding: 16, paddingBottom: 32 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title: { fontSize: 22, fontWeight: '800', color: '#0F172A' },
-  refreshBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, backgroundColor: '#E2E8F0' },
-  refreshText: { fontWeight: '700', color: '#0F172A' },
+  title: { fontSize: 24, fontWeight: '800', color: '#0F172A' },
+  headerDate: { color: '#64748B', fontWeight: '600', marginTop: 2 },
   error: { color: '#DC2626', marginVertical: 8 },
   summaryScroll: { marginVertical: 16 },
   summaryCard: { padding: 12, borderRadius: 14, borderWidth: 1, backgroundColor: 'white', marginRight: 12, minWidth: 140 },
@@ -200,13 +208,16 @@ const styles = StyleSheet.create({
   fieldLabel: { color: '#475569', marginBottom: 6, fontWeight: '600' },
   input: { borderWidth: 1, borderColor: '#CBD5F5', borderRadius: 12, padding: 12, color: '#0F172A', backgroundColor: '#F8FAFC' },
   notesInput: { minHeight: 80, textAlignVertical: 'top' },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
-  boldText: { fontWeight: '700', color: '#0F172A' },
+  balanceRow: { flexDirection: 'row', marginTop: 16, columnGap: 12 },
+  balanceCard: { flex: 1, backgroundColor: '#F8FAFC', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#E2E8F0' },
+  balanceLabel: { color: '#94A3AF', fontSize: 12 },
+  balanceValue: { fontSize: 20, fontWeight: '800', color: '#0F172A', marginTop: 4 },
   submitBtn: { marginTop: 16, backgroundColor: '#0F172A', paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
   submitBtnDisabled: { opacity: 0.6 },
   submitText: { color: 'white', fontWeight: '700' },
-  auditRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  mutedSmall: { color: '#94A3AF', fontSize: 12 },
-  auditMini: { color: '#475569', fontSize: 12, marginTop: 2 },
-  itemName: { color: '#0F172A', fontWeight: '600' },
+  historyList: { gap: 12 },
+  auditCard: { borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 16, padding: 16, alignItems: 'center' },
+  auditDate: { fontWeight: '700', color: '#0F172A', marginBottom: 6 },
+  auditDetail: { color: '#475569', fontSize: 13 },
+  auditResult: { marginTop: 8, fontWeight: '700' },
 });

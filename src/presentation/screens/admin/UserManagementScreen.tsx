@@ -17,7 +17,7 @@ export default function UserManagementScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'admin'|'empleado'|'repartidor'>('empleado');
+  const [role, setRole] = useState<'admin' | 'empleado' | 'repartidor'>('empleado');
   const [isActive, setIsActive] = useState(true);
 
   const repo = new UserRepository();
@@ -34,7 +34,9 @@ export default function UserManagementScreen() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const openCreate = () => {
     setEditing(null);
@@ -62,7 +64,7 @@ export default function UserManagementScreen() {
     const trimmedPassword = password.trim();
 
     if (!trimmedName || !trimmedEmail || (!editing && !trimmedPassword)) {
-      Alert.alert('Informaci?n insuficiente', 'Completa nombre, correo y contrase?a para continuar.');
+      Alert.alert('Informacion insuficiente', 'Completa nombre, correo y contrasena para continuar.');
       return;
     }
 
@@ -73,9 +75,10 @@ export default function UserManagementScreen() {
       role,
     });
     if (!valid.isValid) {
-      Alert.alert('Validaci?n', valid.errors.join('\n'));
+      Alert.alert('Validacion', valid.errors.join('\n'));
       return;
     }
+
     try {
       if (editing) {
         const updates: any = { name: trimmedName, email: trimmedEmail, role, isActive };
@@ -94,8 +97,6 @@ export default function UserManagementScreen() {
     }
   };
 
-
-
   const remove = async (u: any) => {
     if (u.id === currentUser?.id) {
       Alert.alert('Usuarios', 'No puedes eliminar tu propio usuario');
@@ -103,28 +104,19 @@ export default function UserManagementScreen() {
     }
     Alert.alert('Eliminar', `Eliminar a ${u.name}?`, [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: async () => {
-        try { await repo.deleteUser(u.id); await load(); } catch(e: any){ Alert.alert('Error', e.message); }
-      } }
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await repo.deleteUser(u.id);
+            await load();
+          } catch (e: any) {
+            Alert.alert('Error', e.message);
+          }
+        },
+      },
     ]);
-  };
-
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'admin': return 'bg-purple-500';
-      case 'empleado': return 'bg-blue-500';
-      case 'repartidor': return 'bg-green-500';
-      default: return 'bg-gray-500';
-    }
-  };
-
-  const getRoleText = (role: string) => {
-    switch (role) {
-      case 'admin': return 'Administrador';
-      case 'empleado': return 'Empleado';
-      case 'repartidor': return 'Repartidor';
-      default: return role;
-    }
   };
 
   const currentUserId = currentUser?.id ?? -1;
@@ -132,13 +124,13 @@ export default function UserManagementScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Gestión de Usuarios</Text>
+        <Text style={styles.headerTitle}>Gestion de usuarios</Text>
         <Text style={styles.headerSubtitle}>Administra empleados y repartidores</Text>
       </View>
 
       <View style={styles.actionsRow}>
         <TouchableOpacity style={styles.primaryButton} onPress={openCreate}>
-          <Text style={styles.primaryButtonText}>+ Crear Usuario</Text>
+          <Text style={styles.primaryButtonText}>+ Crear usuario</Text>
         </TouchableOpacity>
       </View>
 
@@ -164,7 +156,7 @@ export default function UserManagementScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.cardTitle}>
                     {user.name}
-                    {user.id === currentUserId ? <Text style={styles.youText}> (Tú)</Text> : null}
+                    {user.id === currentUserId ? <Text style={styles.youText}> (Tu)</Text> : null}
                   </Text>
                   <Text style={styles.cardSubtitle}>{user.email}</Text>
                   <View style={styles.tagsRow}>
@@ -194,18 +186,35 @@ export default function UserManagementScreen() {
             </View>
             <View style={styles.formBlock}>
               <Text style={styles.formLabel}>Email</Text>
-              <TextInput style={styles.formInput} value={email} onChangeText={setEmail} placeholder="email@dominio.com" placeholderTextColor="#9CA3AF" autoCapitalize="none" keyboardType="email-address" />
+              <TextInput
+                style={styles.formInput}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="email@dominio.com"
+                placeholderTextColor="#9CA3AF"
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
             </View>
             <View style={styles.formBlock}>
-              <Text style={styles.formLabel}>Contraseña {editing ? '(dejar vacío para no cambiar)' : ''}</Text>
-              <TextInput style={styles.formInput} value={password} onChangeText={setPassword} placeholder="••••••" placeholderTextColor="#9CA3AF" secureTextEntry />
+              <Text style={styles.formLabel}>Contrasena {editing ? '(dejar vacio para no cambiar)' : ''}</Text>
+              <TextInput style={styles.formInput} value={password} onChangeText={setPassword} placeholder="******" placeholderTextColor="#9CA3AF" secureTextEntry />
             </View>
             <View style={[styles.formBlock, { flexDirection: 'row' }]}>
-              {(['admin','empleado','repartidor'] as const).map(r => (
-                <TouchableOpacity key={r} style={[styles.roleChip, role===r? styles.roleChipActive: styles.roleChipInactive]} onPress={() => setRole(r)}>
-                  <Text style={role===r? styles.roleChipTextActive: styles.roleChipTextInactive}>{r}</Text>
+              {(['admin', 'empleado', 'repartidor'] as const).map((r) => (
+                <TouchableOpacity
+                  key={r}
+                  style={[styles.roleChip, role === r ? styles.roleChipActive : styles.roleChipInactive]}
+                  onPress={() => setRole(r)}
+                >
+                  <Text style={role === r ? styles.roleChipTextActive : styles.roleChipTextInactive}>{r}</Text>
                 </TouchableOpacity>
               ))}
+            </View>
+            <View style={styles.roleHelper}>
+              <Text style={styles.roleHelperText}>Admin: Acceso total al sistema.</Text>
+              <Text style={styles.roleHelperText}>Cajero: Solo ventas y corte de caja.</Text>
+              <Text style={styles.roleHelperText}>Repartidor: Solo entregas y hieleras.</Text>
             </View>
             <View style={[styles.formBlock, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
               <Text style={styles.formLabel}>Activo</Text>
@@ -237,6 +246,19 @@ const roleBg = (role: string) => {
       return '#E8F5E9';
     default:
       return '#E0E0E0';
+  }
+};
+
+const getRoleText = (role: string) => {
+  switch (role) {
+    case 'admin':
+      return 'Administrador';
+    case 'empleado':
+      return 'Empleado';
+    case 'repartidor':
+      return 'Repartidor';
+    default:
+      return role;
   }
 };
 
@@ -277,6 +299,8 @@ const styles = StyleSheet.create({
   roleChipInactive: { backgroundColor: '#E5E7EB' },
   roleChipTextActive: { color: 'white', fontWeight: '700' },
   roleChipTextInactive: { color: '#111827', fontWeight: '600' },
+  roleHelper: { backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, marginBottom: 12 },
+  roleHelperText: { color: '#475569', fontSize: 12 },
   modalActions: { flexDirection: 'row', marginTop: 8 },
   modalBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
   modalCancel: { backgroundColor: '#9CA3AF', marginRight: 8 },

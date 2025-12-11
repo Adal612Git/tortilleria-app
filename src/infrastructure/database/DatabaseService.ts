@@ -85,6 +85,56 @@ export class DatabaseService {
     `);
 
     console.log('✅ Tablas inicializadas correctamente');
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS route_boxes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT UNIQUE NOT NULL,
+        isOpen INTEGER NOT NULL DEFAULT 0,
+        openedAt TEXT,
+        closedAt TEXT,
+        totalSold REAL DEFAULT 0,
+        totalWaste REAL DEFAULT 0,
+        ridersInRoute INTEGER DEFAULT 0,
+        ridersSettled INTEGER DEFAULT 0,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      );
+    `);
+
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS coolers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        riderId INTEGER NOT NULL,
+        coolerNumber INTEGER NOT NULL,
+        kilosOut REAL NOT NULL,
+        routePrice REAL NOT NULL,
+        otherProducts TEXT,
+        status TEXT NOT NULL DEFAULT 'en_ruta',
+        goodReturn REAL DEFAULT 0,
+        coldWaste REAL DEFAULT 0,
+        kilosSold REAL DEFAULT 0,
+        expectedTotal REAL DEFAULT 0,
+        receivedTotal REAL DEFAULT 0,
+        difference REAL DEFAULT 0,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      );
+    `);
+
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS route_inventory (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        productId INTEGER NOT NULL,
+        quantity REAL NOT NULL,
+        unit TEXT DEFAULT 'kg',
+        coolerId INTEGER,
+        createdAt TEXT NOT NULL,
+        FOREIGN KEY (coolerId) REFERENCES coolers (id)
+      );
+    `);
+
     // Migraciones de esquema para columnas faltantes
     await this.migrateSchema(db);
     return db;

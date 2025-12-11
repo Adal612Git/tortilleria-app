@@ -38,6 +38,13 @@ export default function AdminDashboardScreen() {
       color: 'bg-orange-500'
     },
     {
+      title: 'Hieleras',
+      description: 'Reparto e inventario en ruta',
+      icon: 'H',
+      screen: 'CoolerManagement' as any,
+      color: 'bg-teal-500'
+    },
+    {
       title: 'Configuración',
       description: 'Ajustes del sistema',
       icon: '⚙️',
@@ -109,6 +116,7 @@ const mapColor = (tw: string) => {
     case 'bg-green-500': return '#22C55E';
     case 'bg-purple-500': return '#8B5CF6';
     case 'bg-orange-500': return '#F97316';
+    case 'bg-teal-500': return '#14B8A6';
     default: return '#3B82F6';
   }
 };

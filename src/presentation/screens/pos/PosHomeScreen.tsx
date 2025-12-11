@@ -1,21 +1,28 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { useAuthStore } from '../../store/authStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 
 export default function PosHomeScreen() {
   const nav = useNavigation<any>();
+  const { logout } = useAuthStore();
 
   const actions = [
-    { title: 'Nueva Venta', subtitle: 'Punto de venta', icon: 'POS', color: '#2563EB', onPress: () => nav.navigate('Sales') },
-    { title: 'Historial', subtitle: 'Ultimas ventas', icon: 'HIST', color: '#7C3AED', onPress: () => nav.navigate('SalesHistory') },
-    { title: 'Reportes', subtitle: 'Estadisticas', icon: 'RPTS', color: '#16A34A', onPress: () => nav.navigate('Reports') },
-    { title: 'Arqueo de caja', subtitle: 'Control de efectivo', icon: 'CAJA', color: '#EA580C', onPress: () => nav.navigate('CashAudit') },
+    { title: 'Nueva venta', subtitle: 'Cobros en caja', icon: 'KG', color: '#2563EB', onPress: () => nav.navigate('Sales') },
+    { title: 'Historial', subtitle: 'Boletas recientes', icon: 'HIST', color: '#7C3AED', onPress: () => nav.navigate('SalesHistory') },
+    { title: 'Reportes de venta', subtitle: 'Graficas y metricas', icon: 'RPTS', color: '#16A34A', onPress: () => nav.navigate('Reports') },
+    { title: 'Arqueo de caja', subtitle: 'Control de efectivo', icon: 'EFEC', color: '#EA580C', onPress: () => nav.navigate('CashAudit') },
   ];
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>POS</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>Punto de venta</Text>
+        <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+          <Text style={styles.logoutText}>Cerrar sesion</Text>
+        </TouchableOpacity>
+      </View>
       <View style={styles.grid}>
         {actions.map((a, i) => (
           <TouchableOpacity key={i} style={[styles.card, { backgroundColor: a.color }]} onPress={a.onPress}>
@@ -33,7 +40,10 @@ export default function PosHomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC', padding: 16 },
-  title: { fontSize: 20, fontWeight: '800', color: '#111827', marginBottom: 12 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  title: { fontSize: 20, fontWeight: '800', color: '#111827' },
+  logoutBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: '#CBD5F5' },
+  logoutText: { color: '#0F172A', fontWeight: '700' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   card: { borderRadius: 16, padding: 18, width: '48%', minWidth: 280, maxWidth: 360, minHeight: 180, maxHeight: 220, justifyContent: 'space-between' },
   icon: { alignSelf: 'flex-start', marginBottom: 12 },

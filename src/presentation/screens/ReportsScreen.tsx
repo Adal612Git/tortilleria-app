@@ -1,5 +1,6 @@
-import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, RefreshControl } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Platform } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import BarChart from '../components/charts/BarChart';
@@ -13,12 +14,22 @@ const filters: { key: 'today' | 'week' | 'month' | 'custom'; label: string }[] =
 ];
 
 const currency = (value: number) => `MX$${value.toFixed(2)}`;
-
+const formatDateDisplay = (value?: string) => {
+  if (!value) return 'Seleccionar';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Seleccionar';
+  return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+};
+const formatMonthLabel = (key: string) => {
+  if (key.length < 7) return key;
+  const [year, month] = key.split('-');
+  return `${month}/${year.slice(-2)}`;
+};
 const formatDateTime = (iso?: string | null) => {
-  if (!iso) return 'Sin registros';
+  if (!iso) return 'Sin registro';
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return 'Sin registros';
-  return `${date.getDate()}/${date.getMonth() + 1} ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+  if (Number.isNaN(date.getTime())) return 'Sin registro';
+  return `${date.getDate()}/${date.getMonth() + 1}`;
 };
 
 export default function ReportsScreen() {
@@ -35,6 +46,8 @@ export default function ReportsScreen() {
     refresh,
     usingFakeData,
   } = useReportsData();
+  const [chartMode, setChartMode] = useState<'day' | 'month'>('day');
+  const [pickerState, setPickerState] = useState<{ field: 'start' | 'end' | null; value: Date }>({ field: null, value: new Date() });
 
   useFocusEffect(
     useCallback(() => {
@@ -42,16 +55,55 @@ export default function ReportsScreen() {
     }, [refresh])
   );
 
-  const paymentSlices = data.paymentMethods.length > 0
-    ? data.paymentMethods
-    : [{ method: 'Efectivo', amount: data.totals.revenue, percentage: 100 }];
+  const paymentSlices = data.paymentMethods;
+  const chartData = useMemo(() => {
+    if (chartMode === 'day') {
+      return data.salesByDate;
+    }
+    const grouped = new Map<string, number>();
+    data.salesByDate.forEach((item) => {
+      const key = (item.date ?? '').slice(0, 7) || 'Sin fecha';
+      grouped.set(key, (grouped.get(key) ?? 0) + item.value);
+    });
+    return Array.from(grouped.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, value]) => ({ date: key, label: formatMonthLabel(key), value }));
+  }, [chartMode, data.salesByDate]);
+
+  const openPicker = (field: 'start' | 'end') => {
+    const base = field === 'start' ? customStart : customEnd;
+    const candidate = base ? new Date(base) : new Date();
+    const safe = Number.isNaN(candidate.getTime()) ? new Date() : candidate;
+    setPickerState({ field, value: safe });
+  };
+
+  const handlePickerChange = (_event: any, selectedDate?: Date) => {
+    if (!pickerState.field) {
+      setPickerState({ field: null, value: new Date() });
+      return;
+    }
+    if (selectedDate) {
+      const iso = selectedDate.toISOString().slice(0, 10);
+      if (pickerState.field === 'start') {
+        setCustomStart(iso);
+        if (!customEnd) {
+          setCustomEnd(iso);
+        }
+      } else {
+        setCustomEnd(iso);
+      }
+    }
+    setPickerState({ field: null, value: new Date() });
+  };
+
+  const closePicker = () => setPickerState({ field: null, value: new Date() });
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor="#0F172A" />}>
-        <Text style={styles.title}>Reportes del POS</Text>
+        <Text style={styles.title}>Reportes de venta</Text>
         {usingFakeData && <Text style={styles.fakeLabel}>Mostrando datos de ejemplo</Text>}
         {error && <Text style={styles.errorText}>{error}</Text>}
 
@@ -68,40 +120,37 @@ export default function ReportsScreen() {
 
         {range === 'custom' && (
           <View style={styles.rangeRow}>
-            <View style={styles.rangeInputBox}>
+            <TouchableOpacity style={styles.rangePicker} onPress={() => openPicker('start')}>
               <Text style={styles.rangeLabel}>Inicio</Text>
-              <TextInput
-                style={styles.rangeInput}
-                value={customStart}
-                onChangeText={setCustomStart}
-                placeholder="2025-01-01"
-                placeholderTextColor="#94A3B8"
-              />
-            </View>
-            <View style={styles.rangeInputBox}>
+              <Text style={styles.rangeValue}>{formatDateDisplay(customStart)}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.rangePicker} onPress={() => openPicker('end')}>
               <Text style={styles.rangeLabel}>Fin</Text>
-              <TextInput
-                style={styles.rangeInput}
-                value={customEnd}
-                onChangeText={setCustomEnd}
-                placeholder="2025-01-31"
-                placeholderTextColor="#94A3B8"
-              />
-            </View>
-            <TouchableOpacity style={styles.rangeButton} onPress={refresh}>
+              <Text style={styles.rangeValue}>{formatDateDisplay(customEnd)}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.rangeApply} onPress={refresh}>
               <Text style={styles.rangeButtonText}>Aplicar</Text>
             </TouchableOpacity>
           </View>
+        )}
+
+        {pickerState.field && (
+          <DateTimePicker
+            value={pickerState.value}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'calendar'}
+            onChange={handlePickerChange}
+            onTouchCancel={closePicker}
+          />
         )}
 
         <View style={styles.cardGrid}>
           <View style={[styles.card, styles.cardSpacer]}>
             <Text style={styles.muted}>Ingresos</Text>
             <Text style={styles.big}>{currency(data.totals.revenue)}</Text>
-            <Text style={styles.mutedSmall}>Ultima venta: {formatDateTime(data.totals.lastSale)}</Text>
           </View>
           <View style={styles.card}>
-            <Text style={styles.muted}>Articulos vendidos</Text>
+            <Text style={styles.muted}>Piezas vendidas</Text>
             <Text style={styles.big}>{data.totals.items}</Text>
             <Text style={styles.mutedSmall}>Ticket promedio {currency(data.totals.avgTicket)}</Text>
           </View>
@@ -110,7 +159,7 @@ export default function ReportsScreen() {
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Productos vendidos</Text>
-            <Text style={styles.sectionSubtitle}>Top basado en el rango</Text>
+            <Text style={styles.sectionSubtitle}>Top del rango seleccionado</Text>
           </View>
           {data.products.length === 0 ? (
             <Text style={styles.muted}>Sin datos disponibles</Text>
@@ -118,7 +167,7 @@ export default function ReportsScreen() {
             data.products.map((product) => (
               <View key={product.name} style={styles.rowBetween}>
                 <Text style={styles.itemName}>{product.name}</Text>
-                <Text style={styles.itemQty}>{product.quantity} uds - {currency(product.revenue)}</Text>
+                <Text style={styles.itemQty}>{product.quantity} piezas | {currency(product.revenue)}</Text>
               </View>
             ))
           )}
@@ -127,38 +176,52 @@ export default function ReportsScreen() {
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Ventas por fecha</Text>
-            <Text style={styles.sectionSubtitle}>Agrupadas por dia</Text>
+            <View style={styles.toggleRow}>
+              {(['day', 'month'] as const).map((mode) => (
+                <TouchableOpacity
+                  key={mode}
+                  style={[styles.toggleButton, chartMode === mode ? styles.toggleButtonActive : styles.toggleButtonInactive]}
+                  onPress={() => setChartMode(mode)}>
+                  <Text style={chartMode === mode ? styles.toggleTextActive : styles.toggleTextInactive}>
+                    {mode === 'day' ? 'Por dia' : 'Por mes'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
-          {data.salesByDate.length === 0 ? (
+          {chartData.length === 0 ? (
             <Text style={styles.muted}>Sin datos</Text>
           ) : (
-            <BarChart data={data.salesByDate} barColor="#7C3AED" />
+            <BarChart data={chartData} barColor="#7C3AED" />
           )}
         </View>
 
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Metodos de pago</Text>
-            <Text style={styles.sectionSubtitle}>Distribucion actual</Text>
           </View>
-          {paymentSlices.map((slice) => (
-            <View key={slice.method} style={styles.paymentRow}>
-              <View style={styles.paymentLabelBox}>
-                <Text style={styles.itemName}>{slice.method}</Text>
-                <Text style={styles.mutedSmall}>{slice.percentage}%</Text>
+          {paymentSlices.length === 0 ? (
+            <Text style={styles.muted}>Sin datos</Text>
+          ) : (
+            paymentSlices.map((slice) => (
+              <View key={slice.method} style={styles.paymentRow}>
+                <View style={styles.paymentLabelBox}>
+                  <Text style={styles.itemName}>{slice.method}</Text>
+                  <Text style={styles.mutedSmall}>{slice.percentage}%</Text>
+                </View>
+                <View style={styles.paymentBarTrack}>
+                  <View style={[styles.paymentBarFill, { width: `${Math.min(slice.percentage, 100)}%` }]} />
+                </View>
+                <Text style={styles.itemQty}>{currency(slice.amount)}</Text>
               </View>
-              <View style={styles.paymentBarTrack}>
-                <View style={[styles.paymentBarFill, { width: `${Math.min(slice.percentage, 100)}%` }]} />
-              </View>
-              <Text style={styles.itemQty}>{currency(slice.amount)}</Text>
-            </View>
-          ))}
+            ))
+          )}
         </View>
 
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Movimiento de stock</Text>
-            <Text style={styles.sectionSubtitle}>Ventas vs inventario</Text>
+            <Text style={styles.sectionTitle}>Ventas vs inventario</Text>
+            <Text style={styles.sectionSubtitle}>Seguimiento de salidas</Text>
           </View>
           {data.stockMovements.length === 0 ? (
             <Text style={styles.muted}>Sin datos</Text>
@@ -167,13 +230,13 @@ export default function ReportsScreen() {
               <View key={movement.product} style={styles.stockRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.itemName}>{movement.product}</Text>
-                  <Text style={styles.mutedSmall}>Ultima venta {formatDateTime(movement.lastSale)}</Text>
+                  <Text style={styles.stockMeta}>Actualizado {formatDateTime(movement.lastSale)}</Text>
                 </View>
                 <View style={styles.stockBadge}>
                   <Text style={styles.stockBadgeText}>-{movement.sold}</Text>
                 </View>
                 <View style={[styles.stockBadge, styles.stockBadgePositive]}>
-                  <Text style={styles.stockBadgeText}>Stock {movement.remaining}</Text>
+                  <Text style={styles.stockBadgeText}>Inventario {movement.remaining}</Text>
                 </View>
               </View>
             ))
@@ -196,11 +259,11 @@ const styles = StyleSheet.create({
   filterInactive: { backgroundColor: '#E2E8F0' },
   filterTextActive: { color: 'white', fontWeight: '700' },
   filterTextInactive: { color: '#0F172A', fontWeight: '600' },
-  rangeRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 12 },
-  rangeInputBox: { flex: 1, marginRight: 8 },
-  rangeLabel: { color: '#475569', marginBottom: 4 },
-  rangeInput: { borderWidth: 1, borderColor: '#CBD5F5', borderRadius: 10, padding: 10, color: '#0F172A', backgroundColor: 'white' },
-  rangeButton: { backgroundColor: '#2563EB', paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12 },
+  rangeRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 12, columnGap: 8 },
+  rangePicker: { flex: 1, backgroundColor: 'white', borderWidth: 1, borderColor: '#CBD5F5', borderRadius: 12, padding: 12 },
+  rangeLabel: { color: '#475569', marginBottom: 4, fontWeight: '600' },
+  rangeValue: { color: '#0F172A', fontWeight: '700' },
+  rangeApply: { backgroundColor: '#2563EB', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12 },
   rangeButtonText: { color: 'white', fontWeight: '700' },
   cardGrid: { flexDirection: 'row', marginBottom: 12 },
   card: { flex: 1, backgroundColor: 'white', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E2E8F0' },
@@ -215,11 +278,18 @@ const styles = StyleSheet.create({
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
   itemName: { color: '#0F172A', fontWeight: '600' },
   itemQty: { color: '#475569', fontWeight: '600' },
+  toggleRow: { flexDirection: 'row', columnGap: 8 },
+  toggleButton: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
+  toggleButtonActive: { backgroundColor: '#0F172A' },
+  toggleButtonInactive: { backgroundColor: '#E2E8F0' },
+  toggleTextActive: { color: '#FFFFFF', fontWeight: '700' },
+  toggleTextInactive: { color: '#0F172A', fontWeight: '600' },
   paymentRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   paymentLabelBox: { width: 90 },
   paymentBarTrack: { flex: 1, height: 10, backgroundColor: '#E2E8F0', borderRadius: 999, marginHorizontal: 8 },
   paymentBarFill: { height: 10, borderRadius: 999, backgroundColor: '#059669' },
   stockRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  stockMeta: { color: '#94A3AF', fontSize: 12 },
   stockBadge: { backgroundColor: '#FECACA', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, marginHorizontal: 6 },
   stockBadgePositive: { backgroundColor: '#DCFCE7' },
   stockBadgeText: { color: '#0F172A', fontWeight: '700' },
