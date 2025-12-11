@@ -50,11 +50,11 @@ export const useSaleCalculator = (incomingPricePerKg: number) => {
     if (target === mode) return;
     setModeInternal(target);
     if (target === 'pesos') {
-      setRawValue(formatValue(moneyValue));
+      setRawValue('0');
     } else {
       setRawValue(formatValue(kilosValue));
     }
-  }, [mode, moneyValue, kilosValue, formatValue]);
+  }, [mode, kilosValue, formatValue]);
 
   const addMoney = useCallback((amount: number) => {
     const nextMoney = moneyValue + amount;

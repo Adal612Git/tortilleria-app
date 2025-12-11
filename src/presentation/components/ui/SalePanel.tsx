@@ -3,6 +3,14 @@ import { Modal, View, Text, TouchableOpacity, TextInput, StyleSheet } from 'reac
 import { Product } from '../../../domain/entities/Product';
 import { useSaleCalculator } from '../../hooks/useSaleCalculator';
 
+const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'C'] as const;
+const kiloPresets = [
+  { label: '1/4 kg', value: 0.25 },
+  { label: '1/2 kg', value: 0.5 },
+  { label: '1 kg', value: 1 },
+  { label: '2 kg', value: 2 },
+] as const;
+
 type Props = {
   product: Product | null;
   visible: boolean;
@@ -12,7 +20,7 @@ type Props = {
 
 export function SalePanel({ product, visible, onClose, onConfirm }: Props) {
   const price = product?.price ?? 0;
-  const { mode, setMode, input, setInput, moneyValue, kilosValue, addMoney, addKilos, reset } = useSaleCalculator(price);
+  const { mode, setMode, input, setInput, moneyValue, kilosValue, reset } = useSaleCalculator(price);
 
   useEffect(() => {
     if (product) {
@@ -27,6 +35,31 @@ export function SalePanel({ product, visible, onClose, onConfirm }: Props) {
   const handleAdd = () => {
     if (kilosValue <= 0) return;
     onConfirm({ mode, kilos: parseFloat(kilosValue.toFixed(3)) });
+  };
+
+  const handleKeyPress = (key: (typeof keypadKeys)[number]) => {
+    if (mode !== 'pesos') {
+      return;
+    }
+    if (key === 'C') {
+      setInput('0');
+      return;
+    }
+    if (key === '.' && input.includes('.')) {
+      return;
+    }
+    const next = input === '0' && key !== '.' ? key : `${input}${key}`;
+    setInput(next);
+  };
+
+  const handlePreset = (value: number) => {
+    const current = parseFloat(input) || 0;
+    const total = current + value;
+    setInput(total.toString());
+  };
+
+  const handleClear = () => {
+    setInput('0');
   };
 
   return (
@@ -68,20 +101,36 @@ export function SalePanel({ product, visible, onClose, onConfirm }: Props) {
             placeholderTextColor="#CBD5F5"
           />
 
-          <View style={styles.quickRow}>
-            <TouchableOpacity style={styles.quickButton} onPress={() => addMoney(10)}>
-              <Text style={styles.quickText}>+$10</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickButton} onPress={() => addMoney(20)}>
-              <Text style={styles.quickText}>+$20</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickButton} onPress={() => addKilos(0.5)}>
-              <Text style={styles.quickText}>+0.5 kg</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickButton} onPress={() => addKilos(1)}>
-              <Text style={styles.quickText}>+1 kg</Text>
-            </TouchableOpacity>
-          </View>
+          {mode === 'kilos' && (
+            <View style={styles.presetsColumn}>
+              <View style={styles.presetsRow}>
+                {kiloPresets.map((preset) => (
+                  <TouchableOpacity key={preset.value} style={styles.presetButton} onPress={() => handlePreset(preset.value)}>
+                    <Text style={styles.presetText}>{preset.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TouchableOpacity style={styles.clearButton} onPress={handleClear}>
+                <Text style={styles.clearButtonText}>Limpiar</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {mode === 'pesos' && (
+            <View style={styles.keypad}>
+              {keypadKeys.map((key) => (
+                <TouchableOpacity
+                  key={key}
+                  style={[styles.keypadKey, key === 'C' && styles.keypadKeyClear]}
+                  onPress={() => handleKeyPress(key)}
+                >
+                  <Text style={[styles.keypadKeyText, key === 'C' && styles.keypadKeyTextClear]}>
+                    {key === 'C' ? 'Limpiar' : key}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
           <View style={styles.summaryRow}>
             <View style={styles.summaryBox}>
@@ -121,9 +170,17 @@ const styles = StyleSheet.create({
   toggleText: { fontWeight: '700', color: '#475569' },
   toggleTextActive: { color: 'white' },
   bigInput: { fontSize: 48, fontWeight: '800', textAlign: 'center', color: '#0F172A' },
-  quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  quickButton: { flexBasis: '48%', backgroundColor: '#F1F5F9', borderRadius: 14, paddingVertical: 12, alignItems: 'center' },
-  quickText: { fontWeight: '700', color: '#0F172A' },
+  presetsColumn: { gap: 10 },
+  presetsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  presetButton: { flexGrow: 1, flexBasis: '22%', minWidth: 70, backgroundColor: '#EEF2FF', borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
+  presetText: { fontWeight: '700', color: '#1E3A8A', fontSize: 12 },
+  clearButton: { borderWidth: 1, borderColor: '#F87171', borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
+  clearButtonText: { color: '#B91C1C', fontWeight: '700' },
+  keypad: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
+  keypadKey: { flexBasis: '30%', backgroundColor: '#F1F5F9', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  keypadKeyClear: { backgroundColor: '#FFE4E6' },
+  keypadKeyText: { fontWeight: '700', fontSize: 18, color: '#0F172A' },
+  keypadKeyTextClear: { color: '#B91C1C' },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
   summaryBox: { flex: 1 },
   summaryLabel: { color: '#94A3B8', fontSize: 12 },
