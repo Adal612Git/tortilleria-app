@@ -138,7 +138,7 @@ const DeliveryDashboard = () => {
             <View style={styles.orderInfo}>
                 <Text style={styles.customerName}>{item.customerName}</Text>
                 <Text style={styles.address}>{item.address}</Text>
-                <Text style={styles.total}>${item.total.toFixed(2)}</Text>
+                <Text style={styles.total}>MX${item.total.toFixed(2)}</Text>
             </View>
 
             <View style={styles.itemsList}>

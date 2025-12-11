@@ -163,11 +163,11 @@ const SalesScreen = () => {
             // Mostrar éxito
             Alert.alert(
                 'Venta Exitosa',
-                `Venta procesada por $${getTotal().toFixed(2)}`,
+                `Venta procesada por MX$${getTotal().toFixed(2)}`,
                 [{ text: 'OK', onPress: () => setCart([]) }]
             );
 
-            logger.info(`Venta procesada: $${getTotal().toFixed(2)}`);
+            logger.info(`Venta procesada: MX$${getTotal().toFixed(2)}`);
 
         } catch (error) {
             logger.error('Error procesando venta:', error);
@@ -185,7 +185,7 @@ const SalesScreen = () => {
         >
             <View style={styles.productInfo}>
                 <Text style={styles.productName}>{item.name}</Text>
-                <Text style={styles.productPrice}>${item.price.toFixed(2)}</Text>
+                <Text style={styles.productPrice}>MX$${item.price.toFixed(2)}</Text>
                 <Text style={styles.productStock}>
                     {item.stock > 0 ? `Stock: ${item.stock}` : 'SIN STOCK'}
                 </Text>
@@ -200,7 +200,7 @@ const SalesScreen = () => {
         <View style={styles.cartItem}>
             <View style={styles.cartItemInfo}>
                 <Text style={styles.cartItemName}>{item.product.name}</Text>
-                <Text style={styles.cartItemPrice}>${item.product.price.toFixed(2)} c/u</Text>
+                <Text style={styles.cartItemPrice}>MX${item.product.price.toFixed(2)} c/u</Text>
             </View>
             <View style={styles.cartItemControls}>
                 <TouchableOpacity 
@@ -220,7 +220,7 @@ const SalesScreen = () => {
                     <Text style={styles.quantityButtonText}>+</Text>
                 </TouchableOpacity>
                 
-                <Text style={styles.cartItemSubtotal}>${item.subtotal.toFixed(2)}</Text>
+                <Text style={styles.cartItemSubtotal}>MX${item.subtotal.toFixed(2)}</Text>
                 
                 <TouchableOpacity 
                     style={styles.removeButton}
@@ -280,7 +280,7 @@ const SalesScreen = () => {
                             
                             <View style={styles.totalSection}>
                                 <Text style={styles.totalLabel}>Total:</Text>
-                                <Text style={styles.totalAmount}>${getTotal().toFixed(2)}</Text>
+                                <Text style={styles.totalAmount}>MX${getTotal().toFixed(2)}</Text>
                             </View>
                             
                             <TouchableOpacity 

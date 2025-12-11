@@ -33,21 +33,21 @@ export function PaymentConfirmationModal({
           <Text style={styles.title}>Confirmar venta</Text>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Total</Text>
-            <Text style={styles.summaryValue}>${total.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>MX$${total.toFixed(2)}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Pagado</Text>
-            <Text style={styles.summaryValue}>${paid.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>MX$${paid.toFixed(2)}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Cambio</Text>
-            <Text style={styles.summaryValue}>${change.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>MX$${change.toFixed(2)}</Text>
           </View>
 
           {isReady ? (
             <Text style={styles.success}>Cobro completo. Puedes finalizar la venta.</Text>
           ) : (
-            <Text style={styles.warning}>Faltan ${remaining.toFixed(2)} por cobrar.</Text>
+            <Text style={styles.warning}>Faltan MX$${remaining.toFixed(2)} por cobrar.</Text>
           )}
 
           <View style={styles.actions}>

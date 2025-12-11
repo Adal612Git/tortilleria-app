@@ -37,7 +37,7 @@ export default function SalesHistoryScreen() {
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={styles.qty}>x{item.quantity}</Text>
-              <Text style={styles.total}>${item.totalPrice.toFixed(2)}</Text>
+              <Text style={styles.total}>MX$${item.totalPrice.toFixed(2)}</Text>
             </View>
           </View>
         )}

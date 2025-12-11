@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -43,6 +43,7 @@ type CatalogFilterKey = (typeof catalogFilters)[number]['key'];
 
 const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', '.'];
 const productPlaceholder = require('../../../../assets/icon.png');
+const formatCurrency = (value: number) => `MX$${value.toFixed(2)}`;
 
 const matchesCategory = (product: Product, filter: CatalogFilterKey) => {
   const name = product.name.toLowerCase();
@@ -173,6 +174,8 @@ export default function SalesScreen() {
   const handleSaleConfirmation = async () => {
     if (processingSale || payment.status === 'insufficient') return;
     setProcessingSale(true);
+    setReviewOpen(false);
+    setPayOpen(false);
     try {
       const result = await checkoutService.completeSale({
         items,
@@ -180,18 +183,19 @@ export default function SalesScreen() {
         userId: (user as any)?.id,
       });
       const change = Math.max(result.change, 0);
-      Alert.alert('Venta completada', `Cambio: $${change.toFixed(2)}`);
+      Alert.alert('Venta completada', `Cambio: ${formatCurrency(change)}`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       clear();
       payment.reset();
       await load();
-      setReviewOpen(false);
-      setPayOpen(false);
       toggle(false);
+      closePaymentModal();
     } catch (e: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Error', e?.message ?? 'No se pudo registrar la venta.');
       await load();
+      setPayOpen(true);
+      setReviewOpen(false);
     } finally {
       setProcessingSale(false);
     }
@@ -204,7 +208,7 @@ export default function SalesScreen() {
         <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
         <Text style={styles.cardSubtitle} numberOfLines={1}>{item.description}</Text>
         <View style={styles.cardRowBetween}>
-          <Text style={styles.cardPrice}>${item.price.toFixed(2)}</Text>
+          <Text style={styles.cardPrice}>{formatCurrency(item.price)}</Text>
           <Text style={styles.cardStock}>Stock: {item.stock}</Text>
         </View>
       </View>
@@ -282,7 +286,7 @@ export default function SalesScreen() {
             <Ionicons name="cart" size={20} color="#E65100" />
             <Text style={styles.cartTitle}>Carrito ({items.length})</Text>
           </View>
-          <Text style={styles.cartTotal}>${cartTotal.toFixed(2)}</Text>
+          <Text style={styles.cartTotal}>{formatCurrency(cartTotal)}</Text>
         </TouchableOpacity>
 
         {isOpen && (
@@ -324,9 +328,9 @@ export default function SalesScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.mutedCenter}>Total</Text>
-            <Text style={styles.modalBig}>${cartTotal.toFixed(2)}</Text>
+            <Text style={styles.modalBig}>{formatCurrency(cartTotal)}</Text>
             <Text style={styles.mutedCenter}>Efectivo</Text>
-            <Text style={styles.modalBig}>${payment.input || '0'}</Text>
+            <Text style={styles.modalBig}>MX$${payment.input || '0'}</Text>
 
             <View style={styles.keypadRowWrap}>
               {keypadKeys.map(key => (

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Activi
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCashAudit } from '../../hooks/useCashAudit';
 
-const formatCurrency = (value: number) => `$${value.toFixed(2)}`;
+const formatCurrency = (value: number) => `MX$${value.toFixed(2)}`;
 
 export default function CashAuditScreen() {
   const { audits, loading, error, todaySales, recordAudit, refresh } = useCashAudit();

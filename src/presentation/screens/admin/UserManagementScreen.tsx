@@ -57,31 +57,44 @@ export default function UserManagementScreen() {
   };
 
   const save = async () => {
-    const partial = { name, email, password: password || undefined, role, isActive };
-    const valid = UserValidator.validate({ name, email, password: password || 'placeholder', role });
-    if (!editing && !password) {
-      Alert.alert('Validación', 'La contraseña es requerida');
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedName || !trimmedEmail || (!editing && !trimmedPassword)) {
+      Alert.alert('Informaci?n insuficiente', 'Completa nombre, correo y contrase?a para continuar.');
       return;
     }
+
+    const valid = UserValidator.validate({
+      name: trimmedName,
+      email: trimmedEmail,
+      password: editing && !trimmedPassword ? 'placeholder' : trimmedPassword,
+      role,
+    });
     if (!valid.isValid) {
-      Alert.alert('Validación', valid.errors.join('\n'));
+      Alert.alert('Validaci?n', valid.errors.join('\n'));
       return;
     }
     try {
       if (editing) {
-        const updates: any = { name, email, role, isActive };
-        if (password) updates.password = await EncryptionService.hashPassword(password);
+        const updates: any = { name: trimmedName, email: trimmedEmail, role, isActive };
+        if (trimmedPassword) {
+          updates.password = await EncryptionService.hashPassword(trimmedPassword);
+        }
         await repo.updateUser(editing.id!, updates);
       } else {
-        const hashed = await EncryptionService.hashPassword(password);
-        await repo.createUser({ name, email, password: hashed, role, isActive });
+        const hashed = await EncryptionService.hashPassword(trimmedPassword);
+        await repo.createUser({ name: trimmedName, email: trimmedEmail, password: hashed, role, isActive });
       }
       setFormOpen(false);
       await load();
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      Alert.alert('Error', e.message ?? 'No fue posible guardar el usuario');
     }
   };
+
+
 
   const remove = async (u: any) => {
     if (u.id === currentUser?.id) {

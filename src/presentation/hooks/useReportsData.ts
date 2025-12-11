@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DatabaseService } from '../../infrastructure/database/DatabaseService';
+import { readWebSales, WebSaleLine } from '../../infrastructure/storage/webSalesStorage';
 
 type DateRange = 'today' | 'week' | 'month' | 'custom';
 
@@ -29,6 +32,14 @@ type ReportsData = {
   stockMovements: StockMovement[];
 };
 
+const emptyReportsData: ReportsData = {
+  totals: { revenue: 0, items: 0, avgTicket: 0, lastSale: undefined },
+  products: [],
+  salesByDate: [],
+  paymentMethods: [],
+  stockMovements: [],
+};
+
 type UseReportsDataReturn = {
   data: ReportsData;
   loading: boolean;
@@ -41,6 +52,27 @@ type UseReportsDataReturn = {
   setCustomEnd: (value: string) => void;
   refresh: () => Promise<void>;
   usingFakeData: boolean;
+};
+
+type StoredProductSnapshot = {
+  id?: string | number;
+  name?: string;
+  stock?: number;
+};
+
+const PRODUCTS_STORAGE_KEY = '@tortilleria/products';
+
+const readStoredProductsSnapshot = async (): Promise<StoredProductSnapshot[]> => {
+  try {
+    const raw = await AsyncStorage.getItem(PRODUCTS_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 };
 
 const buildFakeData = (): ReportsData => ({
@@ -113,11 +145,147 @@ const getRange = (range: DateRange, start?: string, end?: string) => {
   return { start: fallbackStart, end: endDate };
 };
 
+const buildWebReportsData = async (start: Date, end: Date): Promise<ReportsData> => {
+  const [sales, storedProducts] = await Promise.all([readWebSales(), readStoredProductsSnapshot()]);
+  const startISO = start.toISOString();
+  const endISO = end.toISOString();
+
+  const filtered = sales.filter((line: WebSaleLine) => {
+    const saleDate = line.saleDate ?? '';
+    return saleDate >= startISO && saleDate < endISO;
+  });
+
+  type ProductStat = { name: string; quantity: number; revenue: number; lastSale: string | null };
+  const productStats = new Map<string, ProductStat>();
+  let revenue = 0;
+  let items = 0;
+  let lastSale: string | null = null;
+
+  filtered.forEach((line) => {
+    const totalPrice = Number(line.totalPrice ?? 0);
+    const quantity = Number(line.quantity ?? 0);
+    revenue += totalPrice;
+    items += quantity;
+
+    const saleDate = line.saleDate ?? null;
+    if (saleDate && (!lastSale || saleDate > lastSale)) {
+      lastSale = saleDate;
+    }
+
+    const key = line.productId ?? line.productName ?? line.id;
+    if (!key) {
+      return;
+    }
+    const mapKey = String(key);
+    const current = productStats.get(mapKey) ?? {
+      name: line.productName ?? 'Producto',
+      quantity: 0,
+      revenue: 0,
+      lastSale: null,
+    };
+    current.quantity += quantity;
+    current.revenue += totalPrice;
+    if (saleDate && (!current.lastSale || saleDate > current.lastSale)) {
+      current.lastSale = saleDate;
+    }
+    if (line.productName) {
+      current.name = line.productName;
+    }
+    productStats.set(mapKey, current);
+  });
+
+  const productsList = Array.from(productStats.values())
+    .sort((a, b) => b.quantity - a.quantity)
+    .slice(0, 8)
+    .map((stat) => ({
+      name: stat.name,
+      quantity: stat.quantity,
+      revenue: stat.revenue,
+    }));
+
+  const salesByDateMap = new Map<string, number>();
+  filtered.forEach((line) => {
+    const day = (line.saleDate ?? '').slice(0, 10);
+    if (!day) {
+      return;
+    }
+    salesByDateMap.set(day, (salesByDateMap.get(day) ?? 0) + Number(line.totalPrice ?? 0));
+  });
+  const salesByDate = Array.from(salesByDateMap.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([day, total]) => {
+      const [, month, dayOfMonth] = day.split('-');
+      return {
+        date: day,
+        label: month && dayOfMonth ? `${dayOfMonth}/${month}` : day,
+        value: total,
+      };
+    });
+
+  const paymentMap = new Map<string, number>();
+  filtered.forEach((line) => {
+    const method = line.paymentMethod ?? 'cash';
+    paymentMap.set(method, (paymentMap.get(method) ?? 0) + Number(line.totalPrice ?? 0));
+  });
+  const paymentTotal = Array.from(paymentMap.values()).reduce((sum, amount) => sum + amount, 0);
+  const paymentMethods = Array.from(paymentMap.entries()).map(([method, amount]) => ({
+    method,
+    amount,
+    percentage: paymentTotal > 0 ? Math.round((amount / paymentTotal) * 100) : 0,
+  }));
+
+  const stockMovements: StockMovement[] = [];
+  const seenProductIds = new Set<string>();
+  storedProducts.forEach((prod) => {
+    const productId = prod?.id !== undefined && prod?.id !== null ? String(prod.id) : '';
+    if (productId) {
+      seenProductIds.add(productId);
+    }
+    const stat = productId ? productStats.get(productId) : undefined;
+    stockMovements.push({
+      product: String(prod?.name ?? 'Producto'),
+      sold: stat?.quantity ?? 0,
+      remaining: Number(prod?.stock ?? 0),
+      lastSale: stat?.lastSale ?? null,
+    });
+  });
+
+  productStats.forEach((stat, key) => {
+    if (!seenProductIds.has(key)) {
+      stockMovements.push({
+        product: stat.name,
+        sold: stat.quantity,
+        remaining: 0,
+        lastSale: stat.lastSale ?? null,
+      });
+    }
+  });
+
+  const orderedStock = stockMovements
+    .sort((a, b) => b.sold - a.sold)
+    .slice(0, 10);
+
+  const lines = filtered.length;
+
+  return {
+    totals: {
+      revenue,
+      items,
+      avgTicket: lines > 0 ? revenue / lines : 0,
+      lastSale,
+    },
+    products: productsList,
+    salesByDate,
+    paymentMethods,
+    stockMovements: orderedStock,
+  };
+};
+
 export const useReportsData = (): UseReportsDataReturn => {
   const [range, setRange] = useState<DateRange>('week');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
-  const [data, setData] = useState<ReportsData>(buildFakeData());
+  const [data, setData] = useState<ReportsData>(emptyReportsData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [usingFakeData, setUsingFakeData] = useState(false);
@@ -126,8 +294,16 @@ export const useReportsData = (): UseReportsDataReturn => {
     setLoading(true);
     setError(null);
     try {
-      const db = await DatabaseService.getInstance().getDatabase();
       const { start, end } = getRange(range, customStart, customEnd);
+
+      if (Platform.OS === 'web') {
+        const nextData = await buildWebReportsData(start, end);
+        setData(nextData);
+        setUsingFakeData(false);
+        return;
+      }
+
+      const db = await DatabaseService.getInstance().getDatabase();
       const startISO = start.toISOString();
       const endISO = end.toISOString();
 
@@ -222,13 +398,8 @@ export const useReportsData = (): UseReportsDataReturn => {
         })),
       };
 
-      if (!nextData.totals.revenue && !nextData.products.length && !nextData.salesByDate.length) {
-        setData(buildFakeData());
-        setUsingFakeData(true);
-      } else {
-        setData(nextData);
-        setUsingFakeData(false);
-      }
+      setData(nextData);
+      setUsingFakeData(false);
     } catch (err: any) {
       setError(err?.message ?? 'No se pudieron cargar los reportes');
       setData(buildFakeData());

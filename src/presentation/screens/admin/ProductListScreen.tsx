@@ -62,7 +62,7 @@ export default function ProductListScreen() {
                 <Text style={styles.itemName}>{item.name}</Text>
                 <Text style={styles.itemDesc} numberOfLines={1}>{item.description}</Text>
                 <View style={styles.itemBottomRow}>
-                  <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+                  <Text style={styles.itemPrice}>MX$${item.price.toFixed(2)}</Text>
                   <Text style={styles.itemStock}>Stock: {item.stock}</Text>
                 </View>
               </View>

@@ -70,7 +70,7 @@ export function SalePanel({ product, visible, onClose, onConfirm }: Props) {
           <View style={styles.headerRow}>
             <View>
               <Text style={styles.title}>{product.name}</Text>
-              <Text style={styles.subtitle}>${price.toFixed(2)} / kg</Text>
+              <Text style={styles.subtitle}>MX$${price.toFixed(2)} / kg</Text>
             </View>
             <TouchableOpacity onPress={onClose} accessibilityLabel="Cerrar">
               <Text style={styles.close}>X</Text>
@@ -135,7 +135,7 @@ export function SalePanel({ product, visible, onClose, onConfirm }: Props) {
           <View style={styles.summaryRow}>
             <View style={styles.summaryBox}>
               <Text style={styles.summaryLabel}>Pesos</Text>
-              <Text style={styles.summaryValue}>${moneyValue.toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>MX$${moneyValue.toFixed(2)}</Text>
             </View>
             <View style={styles.summaryBox}>
               <Text style={styles.summaryLabel}>Kilos</Text>

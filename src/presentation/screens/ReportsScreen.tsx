@@ -12,7 +12,7 @@ const filters: { key: 'today' | 'week' | 'month' | 'custom'; label: string }[] =
   { key: 'custom', label: 'Rango' },
 ];
 
-const currency = (value: number) => `$${value.toFixed(2)}`;
+const currency = (value: number) => `MX$${value.toFixed(2)}`;
 
 const formatDateTime = (iso?: string | null) => {
   if (!iso) return 'Sin registros';

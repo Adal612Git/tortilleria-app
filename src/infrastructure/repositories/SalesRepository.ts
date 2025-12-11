@@ -1,4 +1,7 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { DatabaseService } from '../database/DatabaseService';
+import { appendWebSales, WebSaleLine } from '../storage/webSalesStorage';
 
 export type CartItem = {
   productId: string;
@@ -7,6 +10,39 @@ export type CartItem = {
   quantity: number;
   unitLabel?: string;
   unitAmount?: number;
+};
+
+type StoredProduct = {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  category: string;
+  stock: number;
+  unit: 'kg' | 'pieza' | 'docena';
+  isActive: boolean;
+  createdAt: string;
+};
+
+const PRODUCTS_STORAGE_KEY = '@tortilleria/products';
+
+const parseStoredProducts = (raw: string | null): StoredProduct[] => {
+  if (!raw) return [];
+  try {
+    const data = JSON.parse(raw);
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+};
+
+const getStoredProducts = async (): Promise<StoredProduct[]> => {
+  const raw = await AsyncStorage.getItem(PRODUCTS_STORAGE_KEY);
+  return parseStoredProducts(raw);
+};
+
+const saveStoredProducts = async (products: StoredProduct[]) => {
+  await AsyncStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(products));
 };
 
 export class SalesRepository {
@@ -35,7 +71,54 @@ export class SalesRepository {
     }
   }
 
+  private async recordSaleWeb(items: CartItem[], userId?: number, paymentMethod: string = 'cash'): Promise<void> {
+    const products = await getStoredProducts();
+    if (!products.length) {
+      throw new Error('No hay inventario disponible en este dispositivo.');
+    }
+    const draft = products.map(product => ({ ...product }));
+    const saleId = `web-sale-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const saleDate = new Date().toISOString();
+    const saleLines: WebSaleLine[] = [];
+
+    items.forEach((item, index) => {
+      const productIndex = draft.findIndex(p => p.id === item.productId);
+      if (productIndex === -1) {
+        throw new Error(`Producto no encontrado para ${item.name ?? 'producto'}`);
+      }
+      const product = draft[productIndex];
+      if (!product.isActive) {
+        throw new Error(`El producto ${product.name} no esta disponible.`);
+      }
+      const currentStock = Number(product.stock ?? 0);
+      if (currentStock < item.quantity) {
+        throw new Error(`Stock insuficiente para ${item.name ?? product.name}`);
+      }
+      const nextStock = parseFloat((currentStock - item.quantity).toFixed(3));
+      draft[productIndex] = { ...product, stock: nextStock };
+
+      saleLines.push({
+        id: `${saleId}-${index}`,
+        saleId,
+        productId: item.productId,
+        productName: product.name,
+        quantity: item.quantity,
+        totalPrice: item.price * item.quantity,
+        saleDate,
+        paymentMethod,
+        userId,
+      });
+    });
+
+    await saveStoredProducts(draft);
+    await appendWebSales(saleLines);
+  }
+
   async recordSale(items: CartItem[], customerName?: string, customerPhone?: string, userId?: number, paymentMethod: string = 'cash'): Promise<void> {
+    if (Platform.OS === 'web') {
+      await this.recordSaleWeb(items, userId, paymentMethod);
+      return;
+    }
     const db = await this.dbService.getDatabase();
     await this.ensureSchema();
     const saleDate = new Date().toISOString();
