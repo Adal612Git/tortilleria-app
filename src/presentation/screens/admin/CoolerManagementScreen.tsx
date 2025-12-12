@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
@@ -13,7 +13,56 @@ import {
 } from 'react-native';
 import { useRouteOperations } from '../../hooks/useRouteOperations';
 import { CoolerRecord } from '../../../domain/entities/RouteOperations';
+import { RouteOperationsRepository } from '../../../infrastructure/repositories/RouteOperationsRepository';
+import { formatCurrency } from '../../utils/currency';
 
+// Every manual date needs to use Mexico City time so the UI matches the data served to the riders.
+const mexicoDateFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Mexico_City',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+const formatMexicoDate = (offset = 0) => {
+  const base = new Date();
+  base.setDate(base.getDate() + offset);
+  return mexicoDateFormatter.format(base);
+};
+
+const sanitizeDateField = (value: string) => value.replace(/[^0-9-]/g, '').slice(0, 10);
+
+const parseDateInput = (value: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return null;
+  }
+  const [year, month, day] = value.split('-').map((part) => Number(part));
+  const parsed = new Date(year, month - 1, day);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatDateKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const buildDateRange = (start: string, end: string) => {
+  const dates: string[] = [];
+  const startDate = parseDateInput(start);
+  const endDate = parseDateInput(end);
+  if (!startDate || !endDate) {
+    return dates;
+  }
+  const step = startDate <= endDate ? 1 : -1;
+  const cursor = new Date(startDate);
+  while ((step > 0 && cursor <= endDate) || (step < 0 && cursor >= endDate)) {
+    dates.push(formatDateKey(cursor));
+    cursor.setDate(cursor.getDate() + step);
+  }
+  return step < 0 ? dates.reverse() : dates;
+};
 export default function CoolerManagementScreen() {
   const {
     selectedDate,
@@ -60,27 +109,42 @@ export default function CoolerManagementScreen() {
       .sort((a, b) => b.totalCoolers - a.totalCoolers);
   }, [riderMetrics, riders]);
 
+  const historyRepo = useMemo(() => new RouteOperationsRepository(), []);
+  const [historyStart, setHistoryStart] = useState(formatMexicoDate(-7));
+  const [historyEnd, setHistoryEnd] = useState(formatMexicoDate(0));
+  const [historyRecords, setHistoryRecords] = useState<CoolerRecord[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+
   const [createVisible, setCreateVisible] = useState(false);
   const [selectedRider, setSelectedRider] = useState<number | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<string | undefined>(undefined);
   const [kilosOut, setKilosOut] = useState(10);
   const [priceInput, setPriceInput] = useState('18.00');
+  const [initialCashInput, setInitialCashInput] = useState('0');
+  const [initialCashTouched, setInitialCashTouched] = useState(false);
 
   const [liquidateVisible, setLiquidateVisible] = useState(false);
   const [targetCooler, setTargetCooler] = useState<CoolerRecord | null>(null);
-  const [goodReturnInput, setGoodReturnInput] = useState('0');
   const [wasteInput, setWasteInput] = useState('0');
-  const [cashInput, setCashInput] = useState('0');
+
+  const parseDecimal = (value: string) => Number(value.replace(/,/g, '.')) || 0;
+
+  const jumpToToday = () => setSelectedDate(formatMexicoDate(0));
+  const jumpToTomorrow = () => setSelectedDate(formatMexicoDate(1));
 
   const openCreation = () => {
     if (!isBoxOpen) {
       Alert.alert('Caja cerrada', 'Abre el dia antes de crear una hielera.');
       return;
     }
+    const defaultPrice = '18.00';
     setSelectedRider(null);
     setSelectedProductId(defaultProductId);
     setKilosOut(10);
-    setPriceInput('18.00');
+    setPriceInput(defaultPrice);
+    setInitialCashTouched(false);
+    setInitialCashInput((parseDecimal(defaultPrice) * 10).toFixed(2));
     setCreateVisible(true);
   };
 
@@ -90,10 +154,62 @@ export default function CoolerManagementScreen() {
     }
   };
 
+  useEffect(() => {
+    if (initialCashTouched) {
+      return;
+    }
+    const parsedPrice = parseDecimal(priceInput);
+    // Mantiene el efectivo sincronizado con precio * kilos mientras el usuario no lo modifique manualmente.
+    setInitialCashInput((parsedPrice * kilosOut).toFixed(2));
+  }, [initialCashTouched, priceInput, kilosOut]);
+
+  const handleInitialCashChange = (value: string) => {
+    setInitialCashTouched(true);
+    setInitialCashInput(value.replace(/[^0-9.,]/g, ''));
+  };
+
+  const updateHistoryStart = (value: string) => setHistoryStart(sanitizeDateField(value));
+  const updateHistoryEnd = (value: string) => setHistoryEnd(sanitizeDateField(value));
+
+  const loadHistoryRange = async () => {
+    const startValue = sanitizeDateField(historyStart) || formatMexicoDate(-7);
+    const endValue = sanitizeDateField(historyEnd) || formatMexicoDate(0);
+    const dates = buildDateRange(startValue, endValue);
+    if (!dates.length) {
+      setHistoryError('Selecciona fechas validas.');
+      setHistoryRecords([]);
+      return;
+    }
+    if (dates.length > 31) {
+      setHistoryError('El rango maximo es de 31 dias.');
+      setHistoryRecords([]);
+      return;
+    }
+    setHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      // Consultamos directamente al repositorio para no bloquear la UI principal.
+      const lists = await Promise.all(dates.map((date) => historyRepo.listCoolers(date)));
+      const flattened = lists
+        .flat()
+        .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (a.coolerNumber ?? 0) - (b.coolerNumber ?? 0)));
+      setHistoryRecords(flattened);
+    } catch (err: any) {
+      setHistoryError(err?.message ?? 'No se pudo cargar el historial');
+      setHistoryRecords([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadHistoryRange();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const adjustKilos = (delta: number) => {
     setKilosOut((prev) => Math.max(1, prev + delta));
   };
-
   const handleCreate = async () => {
     if (!routeBox?.isOpen) {
       Alert.alert('Caja cerrada', 'Abre el dia antes de asignar producto.');
@@ -107,9 +223,14 @@ export default function CoolerManagementScreen() {
       Alert.alert('Inventario', 'Selecciona un producto para descontar del inventario.');
       return;
     }
-    const parsedPrice = Number(priceInput.replace(/,/g, '.'));
+    const parsedPrice = parseDecimal(priceInput);
     if (!parsedPrice || parsedPrice <= 0) {
       Alert.alert('Precio invalido', 'Ingresa un precio de ruta valido.');
+      return;
+    }
+    const parsedInitialCash = parseDecimal(initialCashInput);
+    if (parsedInitialCash < 0) {
+      Alert.alert('Efectivo invalido', 'Ingresa un monto de efectivo valido.');
       return;
     }
     try {
@@ -117,8 +238,11 @@ export default function CoolerManagementScreen() {
         riderId: selectedRider,
         kilosOut,
         routePrice: parsedPrice,
+        initialCash: parsedInitialCash,
         inventoryProductId: selectedProductId,
       });
+      Alert.alert('Hielera creada', 'Se registro la hielera correctamente.');
+      setInitialCashTouched(false);
       setCreateVisible(false);
     } catch (err: any) {
       Alert.alert('No se pudo crear la hielera', err?.message ?? 'Intenta de nuevo.');
@@ -127,9 +251,7 @@ export default function CoolerManagementScreen() {
 
   const openLiquidation = (cooler: CoolerRecord) => {
     setTargetCooler(cooler);
-    setGoodReturnInput('0');
     setWasteInput('0');
-    setCashInput((cooler.routePrice * cooler.kilosOut).toFixed(2));
     setLiquidateVisible(true);
   };
 
@@ -144,24 +266,25 @@ export default function CoolerManagementScreen() {
     if (!targetCooler) {
       return;
     }
-    const goodReturn = Number(goodReturnInput) || 0;
     const coldWaste = Number(wasteInput) || 0;
-    const receivedTotal = Number(cashInput.replace(/,/g, '.')) || 0;
-    if (goodReturn < 0 || coldWaste < 0) {
+    if (coldWaste < 0) {
       Alert.alert('Valores invalidos', 'Los kilos no pueden ser negativos.');
       return;
     }
-    if (goodReturn + coldWaste > targetCooler.kilosOut) {
-      Alert.alert('Revision', 'Los kilos sobrantes y merma no pueden exceder la carga inicial.');
+    if (coldWaste > targetCooler.kilosOut) {
+      Alert.alert('Revision', 'La merma no puede exceder la carga inicial.');
       return;
     }
+    // Bloqueamos la liquidacion al efectivo asignado para evitar manipulaciones posteriores.
+    const receivedTotal = targetCooler.initialCash;
     try {
       await liquidateCooler({
         coolerId: targetCooler.id!,
-        goodReturn,
+        goodReturn: 0,
         coldWaste,
         receivedTotal,
       });
+      Alert.alert('Liquidacion registrada', 'La hielera fue liquidada.');
       setLiquidateVisible(false);
       setTargetCooler(null);
     } catch (err: any) {
@@ -173,9 +296,8 @@ export default function CoolerManagementScreen() {
     if (!targetCooler) {
       return 0;
     }
-    const goodReturn = Number(goodReturnInput) || 0;
     const coldWaste = Number(wasteInput) || 0;
-    return Math.max(0, targetCooler.kilosOut - (goodReturn + coldWaste));
+    return Math.max(0, targetCooler.kilosOut - coldWaste);
   };
 
   const expectedCash = () => {
@@ -192,7 +314,6 @@ export default function CoolerManagementScreen() {
       Alert.alert('No se pudo cerrar el dia', err?.message ?? 'Revisa las hieleras pendientes.');
     }
   };
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -215,6 +336,14 @@ export default function CoolerManagementScreen() {
               placeholderTextColor="#94A3B8"
               style={styles.dateInput}
             />
+          </View>
+          <View style={styles.dateShortcuts}>
+            <TouchableOpacity style={styles.shortcutButton} onPress={jumpToToday}>
+              <Text style={styles.shortcutText}>Hoy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.shortcutButton} onPress={jumpToTomorrow}>
+              <Text style={styles.shortcutText}>Manana</Text>
+            </TouchableOpacity>
           </View>
           <TouchableOpacity style={styles.secondaryButton} onPress={refresh}>
             <Text style={styles.secondaryButtonText}>Actualizar</Text>
@@ -253,19 +382,26 @@ export default function CoolerManagementScreen() {
             <TouchableOpacity style={styles.primaryButton} onPress={openDay}>
               <Text style={styles.primaryButtonText}>Abrir dia</Text>
             </TouchableOpacity>
-          ) : canCloseDay ? (
-            <TouchableOpacity
-              style={[styles.primaryButton, styles.successButton]}
-              onPress={handleCloseDay}
-              disabled={closingDay}
-            >
-              {closingDay ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.primaryButtonText}>Cerrar dia</Text>
+          ) : (
+            <>
+              <TouchableOpacity
+                style={[styles.primaryButton, canCloseDay ? styles.successButton : styles.disabledButton]}
+                onPress={handleCloseDay}
+                disabled={!canCloseDay || closingDay}
+              >
+                {closingDay ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>
+                    {canCloseDay ? 'Cerrar ruta' : 'Liquida las hieleras para cerrar'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+              {!canCloseDay && (
+                <Text style={styles.hintText}>Liquida todas las hieleras para cerrar la ruta.</Text>
               )}
-            </TouchableOpacity>
-          ) : null}
+            </>
+          )}
         </View>
 
         <View style={styles.summaryCard}>
@@ -319,6 +455,7 @@ export default function CoolerManagementScreen() {
                   <Text style={styles.coolerMeta}>
                     {cooler.kilosOut} kg | {formatMoney(cooler.routePrice)} / kg
                   </Text>
+                  <Text style={styles.coolerMeta}>Efectivo asignado: {formatMoney(cooler.initialCash)}</Text>
                 </View>
                 <View style={styles.rowActions}>
                   <Text style={[styles.statusPill, statusToStyle(cooler.status)]}>{formatStatus(cooler.status)}</Text>
@@ -345,7 +482,7 @@ export default function CoolerManagementScreen() {
               <View key={`metric-${stat.riderId}`} style={styles.metricsRowCard}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.metricRiderName}>{stat.name}</Text>
-                  <Text style={styles.metricRiderDetail}>Hieleras: {stat.totalCoolers} ? Vendidos: {stat.kilosSold} kg</Text>
+                  <Text style={styles.metricRiderDetail}>Hieleras: {stat.totalCoolers} | Vendidos: {stat.kilosSold} kg</Text>
                 </View>
                 <View style={styles.metricStatsRow}>
                   <Text style={styles.metricDetail}>Venta {formatMoney(stat.totalExpected)}</Text>
@@ -355,6 +492,73 @@ export default function CoolerManagementScreen() {
               </View>
             ))
           )}
+        </View>
+        <View style={styles.historyCard}>
+          <View style={styles.listHeader}>
+            <Text style={styles.sectionTitle}>Historial por rango</Text>
+            <Text style={styles.sectionSubtitle}>Consulta fechas anteriores</Text>
+          </View>
+          <View style={styles.historyFilters}>
+            <View style={styles.historyInputBox}>
+              <Text style={styles.label}>Desde</Text>
+              <TextInput
+                value={historyStart}
+                onChangeText={updateHistoryStart}
+                placeholder="2025-12-05"
+                placeholderTextColor="#94A3B8"
+                style={styles.historyInput}
+              />
+            </View>
+            <View style={styles.historyInputBox}>
+              <Text style={styles.label}>Hasta</Text>
+              <TextInput
+                value={historyEnd}
+                onChangeText={updateHistoryEnd}
+                placeholder="2025-12-11"
+                placeholderTextColor="#94A3B8"
+                style={styles.historyInput}
+              />
+            </View>
+            <TouchableOpacity
+              style={[styles.historyButton, historyLoading ? styles.disabledButton : null]}
+              onPress={loadHistoryRange}
+              disabled={historyLoading}
+            >
+              {historyLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.historyButtonText}>Consultar</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+          {historyError ? <Text style={styles.errorText}>{historyError}</Text> : null}
+          <View style={styles.historyList}>
+            {historyRecords.length === 0 ? (
+              <Text style={styles.historyEmpty}>No hay movimientos en el rango seleccionado.</Text>
+            ) : (
+              historyRecords.map((record, index) => (
+                <View key={record.id ?? `${record.date}-${record.coolerNumber}-${record.riderId}`}>
+                  <View style={styles.historyRecord}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.historyRecordTitle}>
+                        {record.date} | Hielera #{record.coolerNumber}
+                      </Text>
+                      <Text style={styles.historyRecordMeta}>
+                        Repartidor #{record.riderId} | {record.kilosOut} kg cargados
+                      </Text>
+                      <Text style={styles.historyRecordMeta}>
+                        Efectivo asignado {formatMoney(record.initialCash)} | Liquidacion {formatMoney(record.receivedTotal || record.initialCash)}
+                      </Text>
+                    </View>
+                    <View style={styles.historyStatusBox}>
+                      <Text style={[styles.statusPill, statusToStyle(record.status)]}>{formatStatus(record.status)}</Text>
+                    </View>
+                  </View>
+                  {index < historyRecords.length - 1 ? <View style={styles.historyDivider} /> : null}
+                </View>
+              ))
+            )}
+          </View>
         </View>
       </ScrollView>
 
@@ -397,11 +601,14 @@ export default function CoolerManagementScreen() {
 
                 <Text style={styles.modalLabel}>2. Kilos para ruta</Text>
                 <View style={styles.kilosRow}>
-                  {[10, 5, 1].map((value) => (
-                    <TouchableOpacity key={value} style={styles.kilosButton} onPress={() => adjustKilos(value)}>
+                  {[10, 5, 1, 0.5].map((value) => (
+                    <TouchableOpacity key={`inc-${value}`} style={styles.kilosButton} onPress={() => adjustKilos(value)}>
                       <Text style={styles.kilosButtonText}>+{value}</Text>
                     </TouchableOpacity>
                   ))}
+                  <TouchableOpacity style={styles.kilosButton} onPress={() => adjustKilos(-0.5)}>
+                    <Text style={styles.kilosButtonText}>-0.5</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity style={styles.kilosButton} onPress={() => adjustKilos(-1)}>
                     <Text style={styles.kilosButtonText}>-1</Text>
                   </TouchableOpacity>
@@ -412,6 +619,14 @@ export default function CoolerManagementScreen() {
                 <TextInput
                   value={priceInput}
                   onChangeText={setPriceInput}
+                  keyboardType="decimal-pad"
+                  style={styles.priceInput}
+                />
+
+                <Text style={styles.modalLabel}>Efectivo recibido (ruta)</Text>
+                <TextInput
+                  value={initialCashInput}
+                  onChangeText={handleInitialCashChange}
                   keyboardType="decimal-pad"
                   style={styles.priceInput}
                 />
@@ -468,13 +683,6 @@ export default function CoolerManagementScreen() {
             {targetCooler ? (
               <>
                 <Text style={styles.modalSummary}>Carga inicial: {targetCooler.kilosOut} kg</Text>
-                <Text style={styles.modalLabel}>Sobrante bueno (kg)</Text>
-                <TextInput
-                  value={goodReturnInput}
-                  onChangeText={setGoodReturnInput}
-                  keyboardType="decimal-pad"
-                  style={styles.priceInput}
-                />
                 <Text style={styles.modalLabel}>Merma / frias (kg)</Text>
                 <TextInput
                   value={wasteInput}
@@ -490,13 +698,7 @@ export default function CoolerManagementScreen() {
                   <Text style={styles.summaryText}>Debe entregar</Text>
                   <Text style={styles.summaryValue}>{formatMoney(expectedCash())}</Text>
                 </View>
-                <Text style={styles.modalLabel}>Efectivo recibido</Text>
-                <TextInput
-                  value={cashInput}
-                  onChangeText={setCashInput}
-                  keyboardType="decimal-pad"
-                  style={styles.priceInput}
-                />
+                <Text style={styles.modalSummary}>Efectivo asignado: {formatMoney(targetCooler.initialCash)}</Text>
               </>
             ) : null}
             <View style={styles.modalActions}>
@@ -518,11 +720,9 @@ export default function CoolerManagementScreen() {
           </View>
         </View>
       </Modal>
-
     </SafeAreaView>
   );
 }
-
 const formatStatus = (status: string) => {
   switch (status) {
     case 'pendiente_liquidar':
@@ -545,7 +745,7 @@ const statusToStyle = (status: string) => {
   }
 };
 
-const formatMoney = (value: number) => `MX$${Number(value || 0).toFixed(2)}`;
+const formatMoney = (value: number) => formatCurrency(value || 0);
 
 const styles = StyleSheet.create({
   container: {
@@ -580,6 +780,21 @@ const styles = StyleSheet.create({
   dateBox: {
     flex: 1,
     marginRight: 12,
+  },
+  dateShortcuts: {
+    flexDirection: 'column',
+    marginRight: 12,
+  },
+  shortcutButton: {
+    backgroundColor: '#E2E8F0',
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginBottom: 6,
+  },
+  shortcutText: {
+    fontWeight: '700',
+    color: '#0F172A',
   },
   label: {
     color: '#475569',
@@ -713,6 +928,9 @@ const styles = StyleSheet.create({
   successButton: {
     backgroundColor: '#059669',
   },
+  disabledButton: {
+    opacity: 0.7,
+  },
   primaryButtonText: {
     color: 'white',
     fontWeight: '700',
@@ -828,6 +1046,74 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     minWidth: 90,
+  },
+  historyCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 16,
+    marginTop: 16,
+  },
+  historyFilters: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    flexWrap: 'wrap',
+    marginBottom: 12,
+  },
+  historyInputBox: {
+    flex: 1,
+    marginRight: 12,
+  },
+  historyInput: {
+    borderWidth: 1,
+    borderColor: '#CBD5F5',
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: '#F8FAFC',
+    color: '#0F172A',
+    fontWeight: '600',
+  },
+  historyButton: {
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  historyButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  historyList: {
+    marginTop: 8,
+  },
+  historyRecord: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  historyRecordTitle: {
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  historyRecordMeta: {
+    color: '#64748B',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  historyStatusBox: {
+    marginLeft: 12,
+  },
+  historyDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+  },
+  historyEmpty: {
+    color: '#94A3AF',
+    fontStyle: 'italic',
   },
   modalOverlay: {
     flex: 1,

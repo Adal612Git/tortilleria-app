@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, RefreshControl, TextInput, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { formatCurrency } from '../../utils/currency';
 import { useProductStore } from '../../store/productStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -62,7 +63,7 @@ export default function ProductListScreen() {
                 <Text style={styles.itemName}>{item.name}</Text>
                 <Text style={styles.itemDesc} numberOfLines={1}>{item.description}</Text>
                 <View style={styles.itemBottomRow}>
-                  <Text style={styles.itemPrice}>MX$${item.price.toFixed(2)}</Text>
+                  <Text style={styles.itemPrice}>{formatCurrency(item.price)}</Text>
                   <Text style={styles.itemStock}>Stock: {item.stock}</Text>
                 </View>
               </View>

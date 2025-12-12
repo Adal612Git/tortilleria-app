@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { formatCurrency } from '../../utils/currency';
 import { DatabaseService } from '../../../infrastructure/database/DatabaseService';
 
 type Row = { id: number; name?: string; quantity: number; totalPrice: number; saleDate: string };
@@ -37,7 +38,7 @@ export default function SalesHistoryScreen() {
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={styles.qty}>x{item.quantity}</Text>
-              <Text style={styles.total}>MX$${item.totalPrice.toFixed(2)}</Text>
+              <Text style={styles.total}>{formatCurrency(item.totalPrice)}</Text>
             </View>
           </View>
         )}

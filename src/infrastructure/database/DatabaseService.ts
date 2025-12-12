@@ -45,6 +45,7 @@ export class DatabaseService {
         name TEXT NOT NULL,
         description TEXT,
         price REAL NOT NULL,
+        unit TEXT DEFAULT 'kg',
         category TEXT NOT NULL,
         stock INTEGER DEFAULT 0,
         isActive INTEGER DEFAULT 1,
@@ -109,6 +110,7 @@ export class DatabaseService {
         coolerNumber INTEGER NOT NULL,
         kilosOut REAL NOT NULL,
         routePrice REAL NOT NULL,
+        initialCash REAL NOT NULL DEFAULT 0,
         otherProducts TEXT,
         status TEXT NOT NULL DEFAULT 'en_ruta',
         goodReturn REAL DEFAULT 0,
@@ -152,6 +154,10 @@ export class DatabaseService {
       console.log('🧩 Migrando products: agregando category');
       await db.execAsync(`ALTER TABLE products ADD COLUMN category TEXT DEFAULT 'otros';`);
     }
+    if (!(await columnExists('products', 'unit'))) {
+      console.log('Migrando products: agregando unit');
+      await db.execAsync(`ALTER TABLE products ADD COLUMN unit TEXT DEFAULT 'kg';`);
+    }
     if (!(await columnExists('products', 'stock'))) {
       console.log('🧩 Migrando products: agregando stock');
       await db.execAsync(`ALTER TABLE products ADD COLUMN stock INTEGER DEFAULT 0;`);
@@ -167,6 +173,11 @@ export class DatabaseService {
     if (!(await columnExists('products', 'updatedAt'))) {
       console.log('🧩 Migrando products: agregando updatedAt');
       await db.execAsync(`ALTER TABLE products ADD COLUMN updatedAt TEXT DEFAULT (CURRENT_TIMESTAMP);`);
+    }
+
+    if (!(await columnExists('coolers', 'initialCash'))) {
+      console.log('Migrando coolers: agregando initialCash');
+      await db.execAsync(`ALTER TABLE coolers ADD COLUMN initialCash REAL DEFAULT 0;`);
     }
 
     // Usuarios

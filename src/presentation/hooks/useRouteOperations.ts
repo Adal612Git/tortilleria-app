@@ -6,7 +6,20 @@ import { Product } from '../../domain/entities/Product';
 import { UserRepository } from '../../infrastructure/repositories/UserRepository';
 import { ProductRepositoryImpl } from '../../infrastructure/repositories/ProductRepositoryImpl';
 
-const todayKey = () => new Date().toISOString().slice(0, 10);
+const mexicoCityFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Mexico_City',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+const getMexicoDateKey = (offsetDays = 0) => {
+  const base = new Date();
+  base.setDate(base.getDate() + offsetDays);
+  return mexicoCityFormatter.format(base);
+};
+
+const todayKey = () => getMexicoDateKey();
 
 const sanitizeDateInput = (value: string) => {
   const cleaned = value.replace(/[^0-9-]/g, '').slice(0, 10);
@@ -130,7 +143,13 @@ export const useRouteOperations = () => {
   );
 
   const createCooler = useCallback(
-    async (input: { riderId: number; kilosOut: number; routePrice: number; inventoryProductId?: string }) => {
+    async (input: {
+      riderId: number;
+      kilosOut: number;
+      routePrice: number;
+      initialCash: number;
+      inventoryProductId?: string;
+    }) => {
       setCreating(true);
       try {
         await repository.createCooler({
@@ -138,6 +157,8 @@ export const useRouteOperations = () => {
           riderId: input.riderId,
           kilosOut: input.kilosOut,
           routePrice: input.routePrice,
+          // Guardamos el efectivo asignado desde la creaci?n para bloquearlo en la liquidaci?n.
+          initialCash: input.initialCash,
           inventoryProductId: input.inventoryProductId,
           inventoryUnit: 'kg',
         });

@@ -18,10 +18,20 @@ export default function ProductFormScreen() {
   const [price, setPrice] = useState(existing?.price?.toString() ?? '');
   const [stock, setStock] = useState(existing?.stock?.toString() ?? '0');
   const [category, setCategory] = useState(existing?.category ?? 'tortilla');
+  const [unit, setUnit] = useState(existing?.unit ?? 'kg');
 
   useEffect(() => {
     navigation.setOptions({ title: editing ? 'Editar Producto' : 'Nuevo Producto' });
   }, [editing]);
+
+  const normalizedName = name.trim().toLowerCase();
+  const isSalsa = category === 'otros' && normalizedName.includes('salsa');
+
+  useEffect(() => {
+    if (isSalsa && unit !== 'pieza') {
+      setUnit('pieza');
+    }
+  }, [isSalsa, unit]);
 
   const onSubmit = async () => {
     const parsedPrice = parseFloat(price);
@@ -32,9 +42,9 @@ export default function ProductFormScreen() {
     }
     try {
       if (editing && existing) {
-        await update(existing.id, { name, description, price: parsedPrice, stock: parsedStock, category });
+        await update(existing.id, { name, description, price: parsedPrice, stock: parsedStock, category, unit: isSalsa ? 'pieza' : unit });
       } else {
-        await add({ name, description, price: parsedPrice, stock: parsedStock, unit: 'kg', category: category as any, isActive: true });
+        await add({ name, description, price: parsedPrice, stock: parsedStock, unit: isSalsa ? 'pieza' : unit, category: category as any, isActive: true });
       }
       navigation.goBack();
     } catch (e: any) {
@@ -62,6 +72,27 @@ export default function ProductFormScreen() {
         <View style={styles.block}>
           <Text style={styles.label}>Stock</Text>
           <TextInput style={styles.input} value={stock} onChangeText={setStock} keyboardType="number-pad" placeholder="0" placeholderTextColor="#9CA3AF" />
+        </View>
+
+        <View style={styles.block}>
+          <Text style={styles.label}>Unidad</Text>
+          <View style={styles.chipsRow}>
+            {(['kg','pieza','docena'] as const).map(opt => {
+              const active = unit === opt || (isSalsa && opt === 'pieza');
+              const disabled = isSalsa && opt !== 'pieza';
+              return (
+                <TouchableOpacity
+                  key={opt}
+                  onPress={() => !disabled && setUnit(opt)}
+                  style={[styles.chip, active ? styles.chipActive : styles.chipInactive, disabled && styles.chipDisabled]}
+                  disabled={disabled}
+                >
+                  <Text style={active ? styles.chipTextActive : styles.chipTextInactive}>{opt.toUpperCase()}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          {isSalsa && <Text style={styles.hint}>Las salsas se venden por pieza.</Text>}
         </View>
         <View style={styles.block}>
           <Text style={styles.label}>Categoría</Text>
@@ -93,6 +124,9 @@ const styles = StyleSheet.create({
   chipInactive: { backgroundColor: '#F1F5F9' },
   chipTextActive: { color: 'white', fontWeight: '600' },
   chipTextInactive: { color: '#212121' },
+  hint: { color: '#64748B', marginTop: 4 },
   saveButton: { backgroundColor: '#E65100', paddingVertical: 14, borderRadius: 12 },
   saveButtonText: { color: 'white', textAlign: 'center', fontSize: 16, fontWeight: '700' },
 });
+
+

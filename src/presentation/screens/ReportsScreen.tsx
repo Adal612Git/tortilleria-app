@@ -4,6 +4,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import BarChart from '../components/charts/BarChart';
+import { formatCurrency } from '../utils/currency';
 import { useReportsData } from '../hooks/useReportsData';
 
 const filters: { key: 'today' | 'week' | 'month' | 'custom'; label: string }[] = [
@@ -13,7 +14,6 @@ const filters: { key: 'today' | 'week' | 'month' | 'custom'; label: string }[] =
   { key: 'custom', label: 'Rango' },
 ];
 
-const currency = (value: number) => `MX$${value.toFixed(2)}`;
 const formatDateDisplay = (value?: string) => {
   if (!value) return 'Seleccionar';
   const date = new Date(value);
@@ -147,12 +147,12 @@ export default function ReportsScreen() {
         <View style={styles.cardGrid}>
           <View style={[styles.card, styles.cardSpacer]}>
             <Text style={styles.muted}>Ingresos</Text>
-            <Text style={styles.big}>{currency(data.totals.revenue)}</Text>
+            <Text style={styles.big}>{formatCurrency(data.totals.revenue)}</Text>
           </View>
           <View style={styles.card}>
             <Text style={styles.muted}>Piezas vendidas</Text>
             <Text style={styles.big}>{data.totals.items}</Text>
-            <Text style={styles.mutedSmall}>Ticket promedio {currency(data.totals.avgTicket)}</Text>
+            <Text style={styles.mutedSmall}>Ticket promedio {formatCurrency(data.totals.avgTicket)}</Text>
           </View>
         </View>
 
@@ -167,7 +167,7 @@ export default function ReportsScreen() {
             data.products.map((product) => (
               <View key={product.name} style={styles.rowBetween}>
                 <Text style={styles.itemName}>{product.name}</Text>
-                <Text style={styles.itemQty}>{product.quantity} piezas | {currency(product.revenue)}</Text>
+                <Text style={styles.itemQty}>{product.quantity} piezas | {formatCurrency(product.revenue)}</Text>
               </View>
             ))
           )}
@@ -212,7 +212,7 @@ export default function ReportsScreen() {
                 <View style={styles.paymentBarTrack}>
                   <View style={[styles.paymentBarFill, { width: `${Math.min(slice.percentage, 100)}%` }]} />
                 </View>
-                <Text style={styles.itemQty}>{currency(slice.amount)}</Text>
+                <Text style={styles.itemQty}>{formatCurrency(slice.amount)}</Text>
               </View>
             ))
           )}

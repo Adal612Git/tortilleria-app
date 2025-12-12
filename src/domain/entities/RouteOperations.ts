@@ -32,6 +32,7 @@ export type CoolerRecord = {
   expectedTotal: number;
   receivedTotal: number;
   difference: number;
+  initialCash: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -44,6 +45,7 @@ export type CreateCoolerInput = {
   otherProducts?: CoolerProductLine[];
   inventoryProductId?: string;
   inventoryUnit?: string;
+  initialCash?: number;
 };
 
 export type RouteInventorySlice = {

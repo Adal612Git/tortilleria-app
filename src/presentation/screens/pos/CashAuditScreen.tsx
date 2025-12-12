@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { formatCurrency } from '../../utils/currency';
 import { useCashAudit } from '../../hooks/useCashAudit';
 
-const formatCurrency = (value: number) => `MX$${value.toFixed(2)}`;
 const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
 const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 const formatHeaderDate = () => {
@@ -221,3 +221,4 @@ const styles = StyleSheet.create({
   auditDetail: { color: '#475569', fontSize: 13 },
   auditResult: { marginTop: 8, fontWeight: '700' },
 });
+

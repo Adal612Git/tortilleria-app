@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useAuthStore } from '../../store/authStore';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 
@@ -9,24 +10,25 @@ export default function PosHomeScreen() {
   const { logout } = useAuthStore();
 
   const actions = [
-    { title: 'Nueva venta', subtitle: 'Cobros en caja', icon: 'KG', color: '#2563EB', onPress: () => nav.navigate('Sales') },
-    { title: 'Historial', subtitle: 'Boletas recientes', icon: 'HIST', color: '#7C3AED', onPress: () => nav.navigate('SalesHistory') },
-    { title: 'Reportes de venta', subtitle: 'Graficas y metricas', icon: 'RPTS', color: '#16A34A', onPress: () => nav.navigate('Reports') },
-    { title: 'Arqueo de caja', subtitle: 'Control de efectivo', icon: 'EFEC', color: '#EA580C', onPress: () => nav.navigate('CashAudit') },
+    { title: 'Nueva venta', subtitle: 'Cobros en caja', icon: 'pricetag-outline', color: '#2563EB', onPress: () => nav.navigate('Sales') },
+    { title: 'Historial', subtitle: 'Boletas recientes', icon: 'time-outline', color: '#7C3AED', onPress: () => nav.navigate('SalesHistory') },
+    { title: 'Reportes de venta', subtitle: 'Graficas y metricas', icon: 'stats-chart-outline', color: '#16A34A', onPress: () => nav.navigate('Reports') },
+    { title: 'Arqueo de caja', subtitle: 'Control de efectivo', icon: 'cash-outline', color: '#EA580C', onPress: () => nav.navigate('CashAudit') },
   ];
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>Punto de venta</Text>
-        <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+        <TouchableOpacity style={styles.logoutBtn} onPress={logout} accessibilityRole='button'>
+          <Ionicons name='log-out-outline' size={18} color='#0F172A' style={{ marginRight: 6 }} />
           <Text style={styles.logoutText}>Cerrar sesion</Text>
         </TouchableOpacity>
       </View>
       <View style={styles.grid}>
         {actions.map((a, i) => (
           <TouchableOpacity key={i} style={[styles.card, { backgroundColor: a.color }]} onPress={a.onPress}>
-            <Text style={styles.icon} className="dashboard-icon">{a.icon}</Text>
+            <Ionicons name={a.icon as any} size={32} color='white' style={styles.icon} />
             <View>
               <Text style={styles.cardTitle} className="dashboard-card-title">{a.title}</Text>
               <Text style={styles.cardSubtitle} className="dashboard-card-subtitle">{a.subtitle}</Text>

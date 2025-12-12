@@ -10,6 +10,7 @@ type DBRow = {
   name: string;
   description?: string | null;
   price: number;
+  unit?: string | null;
   category: string;
   stock: number;
   isActive: number; // 1/0
@@ -39,22 +40,31 @@ export class ProductRepositoryImpl implements ProductRepository {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }
 
+  private applySalsaUnit(product: Product): Product {
+    const isSalsa = product.category === 'otros' && product.name.toLowerCase().includes('salsa');
+    if (isSalsa && product.unit !== 'pieza') {
+      return { ...product, unit: 'pieza' };
+    }
+    return product;
+  }
+
   private toDomain(product: StoredProduct): Product {
-    return { ...product, createdAt: new Date(product.createdAt) };
+    return this.applySalsaUnit({ ...product, createdAt: new Date(product.createdAt) });
   }
 
   private mapRow(row: DBRow): Product {
-    return {
+    const product: Product = {
       id: String(row.id),
       name: row.name,
       description: row.description ?? '',
       price: row.price,
       stock: row.stock,
-      unit: 'kg',
+      unit: ((row.unit as Product['unit']) ?? 'kg'),
       category: (row.category as Product['category']) ?? 'otros',
       isActive: row.isActive === 1,
       createdAt: new Date(row.createdAt),
     };
+    return this.applySalsaUnit(product);
   }
 
   async getAll(): Promise<Product[]> {
@@ -96,11 +106,12 @@ export class ProductRepositoryImpl implements ProductRepository {
     const db = await this.dbService.getDatabase();
     const now = new Date().toISOString();
     const result = await db.runAsync(
-      'INSERT INTO products (name, description, price, category, stock, isActive, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO products (name, description, price, unit, category, stock, isActive, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         product.name,
         product.description ?? '',
         product.price,
+        product.unit ?? 'kg',
         product.category,
         product.stock ?? 0,
         product.isActive ? 1 : 0,
@@ -134,6 +145,7 @@ export class ProductRepositoryImpl implements ProductRepository {
     if (data.description !== undefined) { fields.push('description = ?'); values.push(data.description); }
     if (data.price !== undefined) { fields.push('price = ?'); values.push(data.price); }
     if (data.category !== undefined) { fields.push('category = ?'); values.push(data.category); }
+    if (data.unit !== undefined) { fields.push('unit = ?'); values.push(data.unit); }
     if (data.stock !== undefined) { fields.push('stock = ?'); values.push(data.stock); }
     if (data.isActive !== undefined) { fields.push('isActive = ?'); values.push(data.isActive ? 1 : 0); }
     fields.push('updatedAt = ?'); values.push(new Date().toISOString());

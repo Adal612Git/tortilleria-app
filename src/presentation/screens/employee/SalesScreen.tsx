@@ -24,6 +24,7 @@ import { useAuthStore } from '../../store/authStore';
 import { Product } from '../../../domain/entities/Product';
 import { SalePanel } from '../../components/ui/SalePanel';
 import { PaymentConfirmationModal } from '../../components/ui/PaymentConfirmationModal';
+import { formatCurrency } from '../../utils/currency';
 import { usePaymentFlow } from '../../hooks/usePaymentFlow';
 import { CheckoutService } from '../../../application/services/CheckoutService';
 
@@ -43,7 +44,6 @@ type CatalogFilterKey = (typeof catalogFilters)[number]['key'];
 
 const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', '.'];
 const productPlaceholder = require('../../../../assets/icon.png');
-const formatCurrency = (value: number) => `MX$${value.toFixed(2)}`;
 
 const matchesCategory = (product: Product, filter: CatalogFilterKey) => {
   const name = product.name.toLowerCase();
@@ -330,7 +330,7 @@ export default function SalesScreen() {
             <Text style={styles.mutedCenter}>Total</Text>
             <Text style={styles.modalBig}>{formatCurrency(cartTotal)}</Text>
             <Text style={styles.mutedCenter}>Efectivo</Text>
-            <Text style={styles.modalBig}>MX$${payment.input || '0'}</Text>
+            <Text style={styles.modalBig}>{formatCurrency(payment.input || '0')}</Text>
 
             <View style={styles.keypadRowWrap}>
               {keypadKeys.map(key => (
@@ -383,7 +383,8 @@ const styles = StyleSheet.create({
   header: { backgroundColor: 'white', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitle: { fontSize: 22, fontWeight: '800', color: '#212121' },
-  headerButton: { backgroundColor: '#F1F5F9', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB' },
+  headerButton: { backgroundColor: '#F1F5F9', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row', alignItems: 'center' },
+  headerButtonIcon: { marginRight: 6 },
   headerButtonText: { color: '#212121', fontWeight: '700' },
   searchBox: { marginTop: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', borderRadius: 12, paddingHorizontal: 12 },
   searchInput: { flex: 1, paddingVertical: 12, paddingHorizontal: 8, fontSize: 16, color: '#212121' },
@@ -433,3 +434,7 @@ const styles = StyleSheet.create({
   modalConfirm: { backgroundColor: '#388E3C' },
   modalBtnText: { color: 'white', fontWeight: '700' },
 });
+
+
+
+

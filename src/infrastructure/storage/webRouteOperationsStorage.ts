@@ -23,6 +23,7 @@ export type WebCoolerRecord = {
   coolerNumber: number;
   kilosOut: number;
   routePrice: number;
+  initialCash: number;
   otherProducts: { productId: number; quantity: number }[];
   status: 'en_ruta' | 'pendiente_liquidar' | 'liquidada';
   goodReturn: number;

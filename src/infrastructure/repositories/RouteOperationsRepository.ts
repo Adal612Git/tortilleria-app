@@ -20,18 +20,27 @@ import {
 } from '../storage/webRouteOperationsStorage';
 import { ProductRepositoryImpl } from './ProductRepositoryImpl';
 
+const mexicoCityFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Mexico_City',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
 const formatDateKey = (value: string) => {
-  if (!value) {
-    return new Date().toISOString().slice(0, 10);
+  const fallback = mexicoCityFormatter.format(new Date());
+  if (value) {
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return trimmed;
+    }
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) {
+      // Keep every operation anchored to Mexico City timezone to avoid UTC drift.
+      return mexicoCityFormatter.format(parsed);
+    }
   }
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return new Date().toISOString().slice(0, 10);
-  }
-  const year = parsed.getFullYear();
-  const month = `${parsed.getMonth() + 1}`.padStart(2, '0');
-  const day = `${parsed.getDate()}`.padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return fallback;
 };
 
 const mapBoxRecord = (record: WebRouteBoxRecord): RouteBox => ({
@@ -53,6 +62,7 @@ const mapCoolerRecord = (record: WebCoolerRecord): CoolerRecord => ({
   coolerNumber: record.coolerNumber,
   kilosOut: record.kilosOut,
   routePrice: record.routePrice,
+  initialCash: record.initialCash ?? 0,
   otherProducts: record.otherProducts,
   status: record.status,
   goodReturn: record.goodReturn,
@@ -103,6 +113,7 @@ export class RouteOperationsRepository {
       coolerNumber: Number(row.coolerNumber ?? row.numero_hielera ?? 0),
       kilosOut: Number(row.kilosOut ?? row.kilos_salidos ?? 0),
       routePrice: Number(row.routePrice ?? row.precio_ruta ?? 0),
+      initialCash: Number(row.initialCash ?? 0),
       otherProducts,
       status: (row.status ?? 'en_ruta') as CoolerRecord['status'],
       goodReturn: Number(row.goodReturn ?? row.kilos_sobrantes_buenos ?? 0),
@@ -130,344 +141,16 @@ export class RouteOperationsRepository {
       return records.filter((record) => record.coolerId === coolerId);
     }
     const db = await this.dbService.getDatabase();
-    const rows = await db.getAllAsync<any>('SELECT * FROM route_inventory WHERE coolerId = ?', [coolerId]);
-    return rows;
-  }
-
-  private async consumeInventoryReturn(
-    date: string,
-    coolerId: number,
-    goodReturn: number,
-  ) {
-    if (!goodReturn || goodReturn <= 0) {
-      return;
-    }
-    if (this.isWeb) {
-      const inventory = await readRouteInventory();
-      let remaining = goodReturn;
-      const updated = inventory.map((record) => {
-        if (record.coolerId !== coolerId || remaining <= 0) {
-          return record;
-        }
-        const available = Number(record.quantity ?? 0);
-        const toReturn = Math.min(available, remaining);
-        if (toReturn > 0) {
-          this.updateProductStock(record.productId, toReturn);
-          remaining -= toReturn;
-          return { ...record, quantity: Math.max(0, available - toReturn) };
-        }
-        return record;
-      });
-      await saveRouteInventory(updated);
-      return;
-    }
-    const db = await this.dbService.getDatabase();
-    const slices = await db.getAllAsync<any>('SELECT * FROM route_inventory WHERE coolerId = ?', [coolerId]);
-    let remaining = goodReturn;
-    for (const slice of slices) {
-      if (remaining <= 0) {
-        break;
-      }
-      const available = Number(slice.quantity ?? 0);
-      const toReturn = Math.min(available, remaining);
-      if (toReturn > 0) {
-        await this.updateProductStock(String(slice.productId), toReturn);
-        remaining -= toReturn;
-        await db.runAsync(
-          'UPDATE route_inventory SET quantity = ? WHERE id = ?',
-          [Math.max(0, available - toReturn), slice.id]
-        );
-      }
-    }
-  }
-
-
-  private buildRiderMetrics(
-    riderId: number,
-    dateFilter: string | null,
-    records: Array<{ expectedTotal?: number; receivedTotal?: number; kilosSold?: number; difference?: number }>,
-  ): RiderMetrics {
-    const totalCoolers = records.length;
-    let totalExpected = 0;
-    let totalReceived = 0;
-    let kilosSold = 0;
-    let totalDifference = 0;
-    let shortageCount = 0;
-    let shortageAccumulator = 0;
-    let onTargetCount = 0;
-
-    records.forEach((record) => {
-      const expected = Number(record.expectedTotal ?? 0);
-      const received = Number(record.receivedTotal ?? 0);
-      const diff = Number(record.difference ?? received - expected);
-      const sold = Number(record.kilosSold ?? 0);
-
-      totalExpected += expected;
-      totalReceived += received;
-      kilosSold += sold;
-      totalDifference += diff;
-
-      if (diff < 0) {
-        shortageCount += 1;
-        shortageAccumulator += Math.abs(diff);
-      } else {
-        onTargetCount += 1;
-      }
-    });
-
-    const averageShortage = shortageCount > 0 ? shortageAccumulator / shortageCount : 0;
-    const onTargetPercentage = totalCoolers > 0 ? (onTargetCount / totalCoolers) * 100 : 0;
-
-    return {
-      riderId,
-      date: dateFilter ?? undefined,
-      totalCoolers,
-      kilosSold,
-      totalExpected,
-      totalReceived,
-      totalDifference,
-      averageShortage,
-      onTargetPercentage,
-    };
-  }
-
-  async getRouteBox(date: string): Promise<RouteBox | null> {
-    const normalizedDate = formatDateKey(date);
-    if (this.isWeb) {
-      const boxes = await readRouteBoxes();
-      const found = boxes.find((box) => box.date === normalizedDate);
-      return found ? mapBoxRecord(found) : null;
-    }
-    const db = await this.dbService.getDatabase();
-    const row = await db.getFirstAsync<any>(
-      'SELECT * FROM route_boxes WHERE date = ? LIMIT 1',
-      [normalizedDate]
-    );
-    return row ? this.mapBoxRow(row) : null;
-  }
-
-  async openRouteBox(date: string): Promise<RouteBox> {
-    const normalizedDate = formatDateKey(date);
-    const openedAt = new Date().toISOString();
-    if (this.isWeb) {
-      const boxes = await readRouteBoxes();
-      const existing = boxes.find((box) => box.date === normalizedDate);
-      if (existing?.isOpen) {
-        throw new Error('La caja de ruta ya esta abierta para este dia');
-      }
-      if (existing) {
-        const next: WebRouteBoxRecord = {
-          ...existing,
-          isOpen: true,
-          openedAt,
-          closedAt: null,
-        };
-        const updated = boxes.map((box) => (box.id === existing.id ? next : box));
-        await saveRouteBoxes(updated);
-        return mapBoxRecord(next);
-      }
-      const newRecord: WebRouteBoxRecord = {
-        id: boxes.reduce((max, box) => (box.id > max ? box.id : max), 0) + 1,
-        date: normalizedDate,
-        isOpen: true,
-        openedAt,
-        closedAt: null,
-        totalSold: 0,
-        totalWaste: 0,
-        ridersInRoute: 0,
-        ridersSettled: 0,
-      };
-      await saveRouteBoxes([...boxes, newRecord]);
-      return mapBoxRecord(newRecord);
-    }
-
-    const db = await this.dbService.getDatabase();
-    const existing = await db.getFirstAsync<any>('SELECT * FROM route_boxes WHERE date = ?', [normalizedDate]);
-    if (existing?.isOpen) {
-      throw new Error('La caja de ruta ya esta abierta para este dia');
-    }
-    if (existing) {
-      await db.runAsync(
-        'UPDATE route_boxes SET isOpen = 1, openedAt = ?, closedAt = NULL, updatedAt = ? WHERE id = ?',
-        [openedAt, openedAt, existing.id]
-      );
-    } else {
-      await db.runAsync(
-        `INSERT INTO route_boxes (date, isOpen, openedAt, totalSold, totalWaste, ridersInRoute, ridersSettled, createdAt, updatedAt)
-         VALUES (?, 1, ?, 0, 0, 0, 0, ?, ?)`,
-        [normalizedDate, openedAt, openedAt, openedAt]
-      );
-    }
-    const next = await this.getRouteBox(normalizedDate);
-    if (!next) {
-      throw new Error('No fue posible abrir la caja de ruta');
-    }
-    return next;
-  }
-
-  async closeRouteBox(date: string): Promise<RouteBox> {
-    const normalizedDate = formatDateKey(date);
-    if (this.isWeb) {
-      const coolers = await readRouteCoolers();
-      const pending = coolers.some((cooler) => cooler.date === normalizedDate && cooler.status !== 'liquidada');
-      if (pending) {
-        throw new Error('Liquida todas las hieleras antes de cerrar el dia');
-      }
-      const boxes = await readRouteBoxes();
-      let next: WebRouteBoxRecord | null = null;
-      const now = new Date().toISOString();
-      const updated = boxes.map((box) => {
-        if (box.date === normalizedDate) {
-          next = { ...box, isOpen: false, closedAt: now };
-          return next;
-        }
-        return box;
-      });
-      if (!next) {
-        throw new Error('No existe caja de ruta para este dia');
-      }
-      await saveRouteBoxes(updated);
-      return mapBoxRecord(next);
-    }
-    const db = await this.dbService.getDatabase();
-    const pending = await db.getFirstAsync<any>(
-      'SELECT id FROM coolers WHERE date = ? AND status != "liquidada" LIMIT 1',
-      [normalizedDate]
-    );
-    if (pending) {
-      throw new Error('Liquida todas las hieleras antes de cerrar el dia');
-    }
-    const now = new Date().toISOString();
-    await db.runAsync('UPDATE route_boxes SET isOpen = 0, closedAt = ?, updatedAt = ? WHERE date = ?', [now, now, normalizedDate]);
-    const next = await this.getRouteBox(normalizedDate);
-    if (!next) {
-      throw new Error('No existe caja de ruta para este dia');
-    }
-    return next;
-  }
-
-
-  async getDaySummary(date: string): Promise<RouteDaySummary> {
-    const normalizedDate = formatDateKey(date);
-    if (this.isWeb) {
-      const coolers = await readRouteCoolers();
-      const settled = coolers.filter((cooler) => cooler.date === normalizedDate && cooler.status === 'liquidada');
-      const totalExpected = settled.reduce((sum, cooler) => sum + Number(cooler.expectedTotal ?? 0), 0);
-      const kilosSold = settled.reduce((sum, cooler) => sum + Number(cooler.kilosSold ?? 0), 0);
-      return {
-        date: normalizedDate,
-        totalExpected,
-        kilosSold,
-        settledCoolers: settled.length,
-      };
-    }
-    const db = await this.dbService.getDatabase();
-    const row = await db.getFirstAsync<any>(
-      `SELECT 
-        COALESCE(SUM(expectedTotal), 0) as totalExpected,
-        COALESCE(SUM(kilosSold), 0) as kilosSold,
-        COUNT(*) as settledCoolers
-      FROM coolers
-      WHERE date = ? AND status = 'liquidada'`,
-      [normalizedDate]
-    );
-    return {
-      date: normalizedDate,
-      totalExpected: Number(row?.totalExpected ?? 0),
-      kilosSold: Number(row?.kilosSold ?? 0),
-      settledCoolers: Number(row?.settledCoolers ?? 0),
-    };
-  }
-
-  async getRiderMetrics(riderId: number, date?: string): Promise<RiderMetrics> {
-    const normalizedDate = date ? formatDateKey(date) : null;
-    if (this.isWeb) {
-      const coolers = await readRouteCoolers();
-      const filtered = coolers.filter(
-        (cooler) =>
-          cooler.riderId === riderId &&
-          cooler.status === 'liquidada' &&
-          (!normalizedDate || cooler.date === normalizedDate)
-      );
-      return this.buildRiderMetrics(riderId, normalizedDate, filtered);
-    }
-    const db = await this.dbService.getDatabase();
-    const params: Array<string | number> = [riderId];
-    let query = "SELECT expectedTotal, receivedTotal, kilosSold, difference FROM coolers WHERE riderId = ? AND status = 'liquidada'";
-    if (normalizedDate) {
-      query += ' AND date = ?';
-      params.push(normalizedDate);
-    }
-    const rows = await db.getAllAsync<any>(query, params);
-    return this.buildRiderMetrics(riderId, normalizedDate, rows);
-  }
-
-  async listCoolers(date: string): Promise<CoolerRecord[]> {
-    const normalizedDate = formatDateKey(date);
-    if (this.isWeb) {
-      const coolers = await readRouteCoolers();
-      return coolers.filter((cooler) => cooler.date === normalizedDate).map(mapCoolerRecord);
-    }
-    const db = await this.dbService.getDatabase();
-    const rows = await db.getAllAsync<any>('SELECT * FROM coolers WHERE date = ? ORDER BY coolerNumber ASC', [normalizedDate]);
-    return rows.map((row: any) => this.mapCoolerRow(row));
-  }
-
-  async createCooler(input: CreateCoolerInput): Promise<CoolerRecord> {
-    const normalizedDate = formatDateKey(input.date);
-    const opened = await this.getRouteBox(normalizedDate);
-    if (!opened || !opened.isOpen) {
-      throw new Error('Abre la caja de ruta antes de crear una hielera');
-    }
-    const otherProducts = input.otherProducts ?? [];
-    const now = new Date().toISOString();
-    const inventoryProductId = input.inventoryProductId;
-    const inventoryUnit = input.inventoryUnit ?? 'kg';
-
-    if (this.isWeb) {
-      const [coolers, boxes] = await Promise.all([readRouteCoolers(), readRouteBoxes()]);
-      const sequence =
-        coolers
-          .filter((cooler) => cooler.date === normalizedDate)
-          .reduce((max, cooler) => (cooler.coolerNumber > max ? cooler.coolerNumber : max), 0) + 1;
-      const newRecord: WebCoolerRecord = {
-        id: coolers.reduce((max, cooler) => (cooler.id > max ? cooler.id : max), 0) + 1,
-        date: normalizedDate,
-        riderId: input.riderId,
-        coolerNumber: sequence,
-        kilosOut: input.kilosOut,
-        routePrice: input.routePrice,
-        otherProducts,
-        status: 'en_ruta',
-        goodReturn: 0,
-        coldWaste: 0,
-        kilosSold: 0,
-        expectedTotal: 0,
-        receivedTotal: 0,
-        difference: 0,
-        createdAt: now,
-        updatedAt: now,
-      };
-      await saveRouteCoolers([...coolers, newRecord]);
-      const boxesUpdated = boxes.map((box) =>
-        box.date === normalizedDate ? { ...box, ridersInRoute: box.ridersInRoute + 1 } : box
-      );
-      await saveRouteBoxes(boxesUpdated);
-      await this.reserveInventory(normalizedDate, inventoryProductId, input.kilosOut, inventoryUnit, newRecord.id);
-      return mapCoolerRecord(newRecord);
-    }
-
-    const db = await this.dbService.getDatabase();
     const result = await db.runAsync(
       `INSERT INTO coolers (
-        date, riderId, coolerNumber, kilosOut, routePrice, otherProducts, status,
+        date, riderId, coolerNumber, kilosOut, routePrice, initialCash, otherProducts, status,
         goodReturn, coldWaste, kilosSold, expectedTotal, receivedTotal, difference,
         createdAt, updatedAt
       ) VALUES (
         ?,
         ?,
         (SELECT COALESCE(MAX(coolerNumber), 0) + 1 FROM coolers WHERE date = ?),
-        ?, ?, ?, 'en_ruta',
+        ?, ?, ?, ?, 'en_ruta',
         0, 0, 0, 0, 0, 0,
         ?, ?
       )`,
@@ -477,6 +160,7 @@ export class RouteOperationsRepository {
         normalizedDate,
         input.kilosOut,
         input.routePrice,
+        input.initialCash ?? input.routePrice * input.kilosOut,
         JSON.stringify(otherProducts),
         now,
         now,

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert } from 'react-native';
 import { logger } from "../../core/protection/Logger";
 import { secureCache } from "../../core/protection/SecureCache";
-import { anomalyDetector } from "../../core/protection/AnomalyDetector";
+
+import { formatCurrency } from '../utils/currency';
 
 interface Product {
     id: string;
@@ -163,11 +164,11 @@ const SalesScreen = () => {
             // Mostrar éxito
             Alert.alert(
                 'Venta Exitosa',
-                `Venta procesada por MX$${getTotal().toFixed(2)}`,
+                `Venta procesada por ${formatCurrency(getTotal())}`,
                 [{ text: 'OK', onPress: () => setCart([]) }]
             );
 
-            logger.info(`Venta procesada: MX$${getTotal().toFixed(2)}`);
+            logger.info(`Venta procesada: ${formatCurrency(getTotal())}`);
 
         } catch (error) {
             logger.error('Error procesando venta:', error);
@@ -185,7 +186,7 @@ const SalesScreen = () => {
         >
             <View style={styles.productInfo}>
                 <Text style={styles.productName}>{item.name}</Text>
-                <Text style={styles.productPrice}>MX$${item.price.toFixed(2)}</Text>
+                <Text style={styles.productPrice}>{formatCurrency(item.price)}</Text>
                 <Text style={styles.productStock}>
                     {item.stock > 0 ? `Stock: ${item.stock}` : 'SIN STOCK'}
                 </Text>
@@ -200,7 +201,7 @@ const SalesScreen = () => {
         <View style={styles.cartItem}>
             <View style={styles.cartItemInfo}>
                 <Text style={styles.cartItemName}>{item.product.name}</Text>
-                <Text style={styles.cartItemPrice}>MX${item.product.price.toFixed(2)} c/u</Text>
+                <Text style={styles.cartItemPrice}>{formatCurrency(item.product.price)} c/u</Text>
             </View>
             <View style={styles.cartItemControls}>
                 <TouchableOpacity 
@@ -220,7 +221,7 @@ const SalesScreen = () => {
                     <Text style={styles.quantityButtonText}>+</Text>
                 </TouchableOpacity>
                 
-                <Text style={styles.cartItemSubtotal}>MX${item.subtotal.toFixed(2)}</Text>
+                <Text style={styles.cartItemSubtotal}>{formatCurrency(item.subtotal)}</Text>
                 
                 <TouchableOpacity 
                     style={styles.removeButton}
@@ -280,7 +281,7 @@ const SalesScreen = () => {
                             
                             <View style={styles.totalSection}>
                                 <Text style={styles.totalLabel}>Total:</Text>
-                                <Text style={styles.totalAmount}>MX${getTotal().toFixed(2)}</Text>
+                                <Text style={styles.totalAmount}>{formatCurrency(getTotal())}</Text>
                             </View>
                             
                             <TouchableOpacity 
@@ -506,3 +507,5 @@ const styles = StyleSheet.create({
 });
 
 export default SalesScreen;
+
+

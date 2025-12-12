@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { DemoDataService } from '../../../application/services/DemoDataService';
@@ -33,8 +34,9 @@ export default function SettingsScreen() {
         <Text style={styles.cardTitle}>Cuenta</Text>
         <Text style={styles.muted}>Sesión iniciada como</Text>
         <Text style={styles.bold}>{user?.name} • {user?.email}</Text>
-        <TouchableOpacity style={[styles.btn, styles.btnDanger]} onPress={logout}>
-          <Text style={styles.btnText}>Cerrar sesión</Text>
+        <TouchableOpacity style={[styles.btn, styles.btnDanger, styles.logoutRow]} onPress={logout} accessibilityRole='button'>
+          <Ionicons name='log-out-outline' size={18} color='white' style={{ marginRight: 8 }} />
+          <Text style={styles.btnText}>Cerrar sesion</Text>
         </TouchableOpacity>
       </View>
 

@@ -10,31 +10,37 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StyleSheet
+  StyleSheet,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/authStore';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  
+
   const { login, error, clearError } = useAuthStore();
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Por favor ingresa email y contraseña');
+      Alert.alert('Error', 'Por favor ingresa email y contrasena');
       return;
     }
 
     setLoading(true);
     try {
       await login(email, password);
-    } catch (error: any) {
-      Alert.alert('Error', 'Error al iniciar sesión');
+    } catch (err) {
+      Alert.alert('Error', 'Error al iniciar sesion');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResetPassword = () => {
+    Alert.alert('Recuperar contrasena', 'Contacta al administrador para restablecer tu acceso.');
   };
 
   return (
@@ -42,8 +48,8 @@ export default function LoginScreen() {
       <SafeAreaView style={styles.safe}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.headerBox}>
-            <Text style={styles.title}>Tortillería</Text>
-            <Text style={styles.subtitle}>Inicia sesión en tu cuenta</Text>
+            <Text style={styles.title}>Tortilleria</Text>
+            <Text style={styles.subtitle}>Inicia sesion en tu cuenta</Text>
           </View>
 
           <View style={styles.form}>
@@ -61,19 +67,39 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.inputBlock}>
-              <Text style={styles.label}>Contraseña</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Tu contraseña"
-                placeholderTextColor="#9CA3AF"
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-              />
+              <Text style={styles.label}>Contrasena</Text>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={[styles.input, styles.passwordInput]}
+                  placeholder="Tu contrasena"
+                  placeholderTextColor="#9CA3AF"
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
+                />
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setShowPassword(prev => !prev)}
+                  accessibilityLabel={showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'}
+                >
+                  <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity style={styles.resetLink} onPress={handleResetPassword}>
+                <Text style={styles.resetLinkText}>Olvidaste tu contrasena?</Text>
+              </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={[styles.button, loading && styles.buttonDisabled]} onPress={handleLogin} disabled={loading}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Iniciar Sesión</Text>}
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleLogin}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Iniciar Sesion</Text>
+              )}
             </TouchableOpacity>
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -101,7 +127,21 @@ const styles = StyleSheet.create({
   form: { gap: 14 },
   inputBlock: { marginBottom: 10 },
   label: { color: '#374151', fontSize: 14, fontWeight: '600', marginBottom: 8 },
-  input: { backgroundColor: '#F3F4F6', borderColor: '#E5E7EB', borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 14, fontSize: 16, color: '#111827' },
+  input: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#E5E7EB',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: '#111827',
+  },
+  passwordContainer: { position: 'relative' },
+  passwordInput: { paddingRight: 44 },
+  eyeButton: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' },
+  resetLink: { marginTop: 6, alignSelf: 'flex-end' },
+  resetLinkText: { color: '#1D4ED8', fontWeight: '600' },
   button: { backgroundColor: '#1D4ED8', paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 8 },
   buttonDisabled: { opacity: 0.7 },
   buttonText: { color: 'white', fontSize: 16, fontWeight: '700' },

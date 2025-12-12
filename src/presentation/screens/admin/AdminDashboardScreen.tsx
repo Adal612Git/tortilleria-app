@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../../store/authStore';
 
@@ -10,45 +11,45 @@ export default function AdminDashboardScreen() {
 
   const dashboardCards = [
     {
-      title: 'Gestión de Usuarios',
+      title: 'Gestion de Usuarios',
       description: 'Administrar empleados y repartidores',
-      icon: '👥',
-      screen: 'Users' as any,
+      icon: 'people-outline',
+      screen: 'Users',
       color: 'bg-blue-500'
     },
     {
       title: 'Reportes de Ventas',
-      description: 'Ver reportes y estadísticas',
-      icon: '📊',
-      screen: 'Reports' as any,
+      description: 'Ver reportes y estadisticas',
+      icon: 'stats-chart-outline',
+      screen: 'Reports',
       color: 'bg-green-500'
     },
     {
       title: 'Inventario',
       description: 'Gestionar productos y stock',
-      icon: '📦',
-      screen: 'Products' as any,
+      icon: 'cube-outline',
+      screen: 'Products',
       color: 'bg-purple-500'
     },
     {
       title: 'Punto de Venta',
-      description: 'Nueva venta rápida',
-      icon: '🧾',
-      screen: 'PosSales' as any,
+      description: 'Nueva venta rapida',
+      icon: 'cash-outline',
+      screen: 'PosSales',
       color: 'bg-orange-500'
     },
     {
       title: 'Hieleras',
       description: 'Reparto e inventario en ruta',
-      icon: 'H',
-      screen: 'CoolerManagement' as any,
+      icon: 'snow-outline',
+      screen: 'CoolerManagement',
       color: 'bg-teal-500'
     },
     {
-      title: 'Configuración',
+      title: 'Configuracion',
       description: 'Ajustes del sistema',
-      icon: '⚙️',
-      screen: 'Settings' as any,
+      icon: 'settings-outline',
+      screen: 'Settings',
       color: 'bg-blue-500'
     },
   ];
@@ -63,7 +64,8 @@ export default function AdminDashboardScreen() {
             <Text style={styles.headerTitle}>Panel Admin</Text>
             <Text style={styles.headerSubtitle}>Bienvenido, {user?.name}</Text>
           </View>
-          <TouchableOpacity onPress={logout} style={styles.headerButton}>
+          <TouchableOpacity onPress={logout} style={styles.headerButton} accessibilityRole='button'>
+            <Ionicons name='log-out-outline' size={18} color='#111827' style={styles.headerButtonIcon} />
             <Text style={styles.headerButtonText}>Salir</Text>
           </TouchableOpacity>
         </View>
@@ -77,7 +79,7 @@ export default function AdminDashboardScreen() {
                 style={[styles.card, { backgroundColor: mapColor(card.color) }]}
                 onPress={() => navigation.navigate(card.screen)}
               >
-                <Text style={styles.cardIcon} className="dashboard-icon">{card.icon}</Text>
+                <Ionicons name={card.icon as any} size={30} color='white' style={styles.cardIcon} />
                 <View>
                   <Text style={styles.cardTitle} className="dashboard-card-title">{card.title}</Text>
                   <Text style={styles.cardDescription} className="dashboard-card-subtitle">{card.description}</Text>
@@ -127,7 +129,8 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitle: { fontSize: 24, fontWeight: '800', color: '#111827' },
   headerSubtitle: { color: '#6B7280', marginTop: 4 },
-  headerButton: { backgroundColor: '#F3F4F6', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB' },
+  headerButton: { backgroundColor: '#F3F4F6', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row', alignItems: 'center' },
+  headerButtonIcon: { marginRight: 6 },
   headerButtonText: { color: '#111827', fontWeight: '700' },
 
   content: { paddingHorizontal: 24, paddingVertical: 24, width: '100%', maxWidth: 1280, alignSelf: 'center' },
@@ -145,3 +148,4 @@ const styles = StyleSheet.create({
   summaryNumber: { fontSize: 22, fontWeight: '800' },
   summaryLabel: { color: '#6B7280', fontSize: 12 },
 });
+

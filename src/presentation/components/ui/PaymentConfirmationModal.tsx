@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import type { PaymentStatus } from '../../hooks/usePaymentFlow';
+import { formatCurrency } from '../../utils/currency';
 
 type Props = {
   visible: boolean;
@@ -33,21 +34,21 @@ export function PaymentConfirmationModal({
           <Text style={styles.title}>Confirmar venta</Text>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Total</Text>
-            <Text style={styles.summaryValue}>MX$${total.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>{formatCurrency(total)}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Pagado</Text>
-            <Text style={styles.summaryValue}>MX$${paid.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>{formatCurrency(paid)}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Cambio</Text>
-            <Text style={styles.summaryValue}>MX$${change.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>{formatCurrency(change)}</Text>
           </View>
 
           {isReady ? (
             <Text style={styles.success}>Cobro completo. Puedes finalizar la venta.</Text>
           ) : (
-            <Text style={styles.warning}>Faltan MX$${remaining.toFixed(2)} por cobrar.</Text>
+            <Text style={styles.warning}>Faltan {formatCurrency(remaining)} por cobrar.</Text>
           )}
 
           <View style={styles.actions}>

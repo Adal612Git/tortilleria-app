@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
 import { Product } from '../../../domain/entities/Product';
 import { useSaleCalculator } from '../../hooks/useSaleCalculator';
+import { formatCurrency } from '../../utils/currency';
 
 const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'C'] as const;
 const kiloPresets = [
@@ -70,7 +71,7 @@ export function SalePanel({ product, visible, onClose, onConfirm }: Props) {
           <View style={styles.headerRow}>
             <View>
               <Text style={styles.title}>{product.name}</Text>
-              <Text style={styles.subtitle}>MX$${price.toFixed(2)} / kg</Text>
+              <Text style={styles.subtitle}>{formatCurrency(price)} / kg</Text>
             </View>
             <TouchableOpacity onPress={onClose} accessibilityLabel="Cerrar">
               <Text style={styles.close}>X</Text>
@@ -135,7 +136,7 @@ export function SalePanel({ product, visible, onClose, onConfirm }: Props) {
           <View style={styles.summaryRow}>
             <View style={styles.summaryBox}>
               <Text style={styles.summaryLabel}>Pesos</Text>
-              <Text style={styles.summaryValue}>MX$${moneyValue.toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>{formatCurrency(moneyValue)}</Text>
             </View>
             <View style={styles.summaryBox}>
               <Text style={styles.summaryLabel}>Kilos</Text>
@@ -189,3 +190,5 @@ const styles = StyleSheet.create({
   addButtonDisabled: { opacity: 0.4 },
   addButtonText: { color: 'white', fontWeight: '700', fontSize: 16 },
 });
+
+
