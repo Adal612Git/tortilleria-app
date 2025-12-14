@@ -315,8 +315,13 @@ export default function CoolerManagementScreen() {
     }
   };
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+    <>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+        <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.headerCard}>
           <View>
             <Text style={styles.heroTitle}>Gestion de Hieleras</Text>
@@ -560,7 +565,8 @@ export default function CoolerManagementScreen() {
             )}
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </SafeAreaView>
 
       <Modal visible={createVisible} transparent animationType="slide" onRequestClose={closeCreation}>
         <View style={styles.modalOverlay}>
@@ -720,7 +726,7 @@ export default function CoolerManagementScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </>
   );
 }
 const formatStatus = (status: string) => {
@@ -752,9 +758,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F1F5F9',
   },
+  scroll: {
+    flex: 1,
+    width: '100%',
+  },
   scrollContent: {
+    flexGrow: 1,
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   headerCard: {
     backgroundColor: '#0F172A',
@@ -775,15 +786,21 @@ const styles = StyleSheet.create({
   controlsRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
     marginBottom: 16,
   },
   dateBox: {
     flex: 1,
+    minWidth: 220,
     marginRight: 12,
+    marginBottom: 12,
   },
   dateShortcuts: {
     flexDirection: 'column',
     marginRight: 12,
+    marginBottom: 12,
+    flexShrink: 0,
   },
   shortcutButton: {
     backgroundColor: '#E2E8F0',
@@ -815,6 +832,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 18,
+    marginBottom: 12,
   },
   secondaryButtonText: {
     color: '#0F172A',
@@ -1259,3 +1277,4 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
+
