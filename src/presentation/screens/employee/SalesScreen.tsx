@@ -62,6 +62,8 @@ const formatQuantity = (value: number) => {
   return normalized.replace(/0+$/, '').replace(/\.$/, '');
 };
 
+const KG_ALLOWED_CATEGORIES = new Set(['masa', 'tortilla']);
+
 export default function SalesScreen() {
   const { products, seedIfEmpty, load } = useProductStore();
   const { items, addItem, increment, decrement, remove, clear, isOpen, toggle, total } = useCartStore();
@@ -142,7 +144,8 @@ export default function SalesScreen() {
   };
 
   const handleProductPress = (product: Product) => {
-    if (product.unit === 'kg') {
+    const canUseKg = KG_ALLOWED_CATEGORIES.has(product.category);
+    if (product.unit === 'kg' && canUseKg) {
       setSaleProduct(product);
       return;
     }
@@ -215,30 +218,46 @@ export default function SalesScreen() {
     </TouchableOpacity>
   );
 
+  const isWeb = Platform.OS === 'web';
+  const bottomSheetHeight = isOpen ? 320 : 72;
+  const estimatedTopArea = 220;
+  const safeHeight = Math.max(0, estimatedTopArea + bottomSheetHeight);
+  const contentWrapperStyles = [styles.mainContent];
+  if (isWeb) {
+    contentWrapperStyles.push({
+      maxHeight: `calc(100vh - ${safeHeight}px)`,
+      overflowY: 'auto',
+      minHeight: 0,
+    });
+  }
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <Text style={styles.headerTitle}>Ventas</Text>
-          <TouchableOpacity onPress={logout} style={styles.headerButton}>
-            <Text style={styles.headerButtonText}>Salir</Text>
-          </TouchableOpacity>
+    <SafeAreaView style={[styles.container, isWeb && styles.containerWeb]}>
+      <View style={contentWrapperStyles}>
+        <View style={styles.header}>
+          <View style={styles.headerRow}>
+            <Text style={styles.headerTitle}>Ventas</Text>
+            <TouchableOpacity onPress={logout} style={styles.headerButton}>
+              <Text style={styles.headerButtonText}>Salir</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.searchBox}>
+            <Ionicons name="search" size={18} color="#757575" />
+            <TextInput
+              placeholder="Buscar producto..."
+              placeholderTextColor="#9CA3AF"
+              style={styles.searchInput}
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+            />
+          </View>
         </View>
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={18} color="#757575" />
-          <TextInput
-            placeholder="Buscar producto..."
-            placeholderTextColor="#9CA3AF"
-            style={styles.searchInput}
-            value={searchTerm}
-            onChangeText={setSearchTerm}
-          />
-        </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryScroll}
-        >
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.categoryScroll}
+        style={styles.categoryWrapper}
+      >
           {catalogFilters.map(filter => {
             const active = activeCategory === filter.key;
             return (
@@ -252,29 +271,29 @@ export default function SalesScreen() {
             );
           })}
         </ScrollView>
-      </View>
 
-      <FlatList<Product>
-        data={filtered}
-        keyExtractor={(item) => item.id}
-        style={styles.productList}
-        contentContainerStyle={styles.productListContent}
-        numColumns={2}
-        columnWrapperStyle={{ gap: 12 }}
-        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-        showsVerticalScrollIndicator
-        renderItem={(info) => (
-          <View style={{ flex: 1 }}>
-            {renderProduct(info)}
-          </View>
-        )}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>Sin productos</Text>
-            <Text style={styles.emptySubtitle}>Ajusta la busqueda o agrega inventario.</Text>
-          </View>
-        }
-      />
+        <FlatList<Product>
+          data={filtered}
+          keyExtractor={(item) => item.id}
+          style={styles.productList}
+          contentContainerStyle={styles.productListContent}
+          numColumns={2}
+          columnWrapperStyle={{ gap: 12 }}
+          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          showsVerticalScrollIndicator
+          renderItem={(info) => (
+            <View style={{ flex: 1 }}>
+              {renderProduct(info)}
+            </View>
+          )}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>Sin productos</Text>
+              <Text style={styles.emptySubtitle}>Ajusta la busqueda o agrega inventario.</Text>
+            </View>
+          }
+        />
+      </View>
 
       <View style={[styles.cartSheet, { height: isOpen ? 320 : 72 }]} accessibilityHint="Panel del carrito">
         <TouchableOpacity
@@ -380,6 +399,13 @@ export default function SalesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAFAFA' },
+  containerWeb: {
+    maxHeight: '100vh',
+  },
+  mainContent: {
+    flex: 1,
+    minHeight: 0,
+  },
   header: { backgroundColor: 'white', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitle: { fontSize: 22, fontWeight: '800', color: '#212121' },
@@ -388,10 +414,30 @@ const styles = StyleSheet.create({
   headerButtonText: { color: '#212121', fontWeight: '700' },
   searchBox: { marginTop: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', borderRadius: 12, paddingHorizontal: 12 },
   searchInput: { flex: 1, paddingVertical: 12, paddingHorizontal: 8, fontSize: 16, color: '#212121' },
-  categoryScroll: { paddingVertical: 12, paddingRight: 16 },
-  categoryChip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999, backgroundColor: '#E2E8F0', marginRight: 10 },
-  categoryChipActive: { backgroundColor: '#0F172A' },
-  categoryChipText: { fontWeight: '700', color: '#475569', fontSize: 13 },
+  categoryWrapper: { height: 50 },
+  categoryScroll: { paddingVertical: 6, paddingRight: 16, alignItems: 'center' },
+  categoryChip: {
+    height: 36,
+    paddingVertical: 0,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    backgroundColor: '#E2E8F0',
+    marginRight: 6,
+    minWidth: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryChipActive: {
+    backgroundColor: '#0F172A',
+    borderColor: '#0F172A',
+    borderWidth: 1,
+  },
+  categoryChipText: {
+    fontWeight: '700',
+    color: '#475569',
+    fontSize: 11,
+    lineHeight: 16,
+  },
   categoryChipTextActive: { color: 'white' },
   productList: { flex: 1 },
   productListContent: { padding: 12, paddingBottom: 260, flexGrow: 1 },
@@ -434,7 +480,3 @@ const styles = StyleSheet.create({
   modalConfirm: { backgroundColor: '#388E3C' },
   modalBtnText: { color: 'white', fontWeight: '700' },
 });
-
-
-
-

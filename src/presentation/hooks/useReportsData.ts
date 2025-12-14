@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DatabaseService } from '../../infrastructure/database/DatabaseService';
 import { readWebSales, WebSaleLine } from '../../infrastructure/storage/webSalesStorage';
+import { readRouteCoolers } from '../../infrastructure/storage/webRouteOperationsStorage';
 
 type DateRange = 'today' | 'week' | 'month' | 'custom';
 
@@ -108,6 +109,8 @@ const buildFakeData = (): ReportsData => ({
   ],
 });
 
+const formatDateKey = (date: Date) => date.toISOString().slice(0, 10);
+
 const ensureValidDate = (value: string) => {
   const [y, m, d] = value.split('-').map((p) => Number(p));
   if (!y || !m || !d) return null;
@@ -146,26 +149,40 @@ const getRange = (range: DateRange, start?: string, end?: string) => {
 };
 
 const buildWebReportsData = async (start: Date, end: Date): Promise<ReportsData> => {
-  const [sales, storedProducts] = await Promise.all([readWebSales(), readStoredProductsSnapshot()]);
+  const [sales, storedProducts, routeCoolers] = await Promise.all([
+    readWebSales(),
+    readStoredProductsSnapshot(),
+    readRouteCoolers(),
+  ]);
   const startISO = start.toISOString();
   const endISO = end.toISOString();
+  const startKey = formatDateKey(start);
+  const endKey = formatDateKey(end);
 
   const filtered = sales.filter((line: WebSaleLine) => {
     const saleDate = line.saleDate ?? '';
     return saleDate >= startISO && saleDate < endISO;
   });
 
+  const routeFiltered = routeCoolers.filter(
+    (cooler) => cooler.status === 'liquidada' && cooler.date >= startKey && cooler.date < endKey
+  );
+  const routeRevenue = routeFiltered.reduce((sum, cooler) => sum + Number(cooler.expectedTotal ?? 0), 0);
+  const routeLastSale = routeFiltered.reduce(
+    (latest, cooler) => (!latest || cooler.date > latest ? cooler.date : latest),
+    ''
+  );
+
   type ProductStat = { name: string; quantity: number; revenue: number; lastSale: string | null };
   const productStats = new Map<string, ProductStat>();
-  let revenue = 0;
-  let items = 0;
+  let revenue = filtered.reduce((sum, line) => sum + Number(line.totalPrice ?? 0), 0);
+  revenue += routeRevenue;
+  let items = filtered.reduce((sum, line) => sum + Number(line.quantity ?? 0), 0);
   let lastSale: string | null = null;
 
   filtered.forEach((line) => {
     const totalPrice = Number(line.totalPrice ?? 0);
     const quantity = Number(line.quantity ?? 0);
-    revenue += totalPrice;
-    items += quantity;
 
     const saleDate = line.saleDate ?? null;
     if (saleDate && (!lastSale || saleDate > lastSale)) {
@@ -211,6 +228,12 @@ const buildWebReportsData = async (start: Date, end: Date): Promise<ReportsData>
     }
     salesByDateMap.set(day, (salesByDateMap.get(day) ?? 0) + Number(line.totalPrice ?? 0));
   });
+  routeFiltered.forEach((cooler) => {
+    if (!cooler.date) {
+      return;
+    }
+    salesByDateMap.set(cooler.date, (salesByDateMap.get(cooler.date) ?? 0) + Number(cooler.expectedTotal ?? 0));
+  });
   const salesByDate = Array.from(salesByDateMap.entries())
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([day, total]) => {
@@ -227,6 +250,9 @@ const buildWebReportsData = async (start: Date, end: Date): Promise<ReportsData>
     const method = line.paymentMethod ?? 'cash';
     paymentMap.set(method, (paymentMap.get(method) ?? 0) + Number(line.totalPrice ?? 0));
   });
+  if (routeRevenue > 0) {
+    paymentMap.set('cash', (paymentMap.get('cash') ?? 0) + routeRevenue);
+  }
   const paymentTotal = Array.from(paymentMap.values()).reduce((sum, amount) => sum + amount, 0);
   const paymentMethods = Array.from(paymentMap.entries()).map(([method, amount]) => ({
     method,
@@ -266,13 +292,15 @@ const buildWebReportsData = async (start: Date, end: Date): Promise<ReportsData>
     .slice(0, 10);
 
   const lines = filtered.length;
+  const candidates = [lastSale, routeLastSale].filter(Boolean) as string[];
+  const finalLastSale = candidates.length ? candidates.sort().pop() : null;
 
   return {
     totals: {
       revenue,
       items,
       avgTicket: lines > 0 ? revenue / lines : 0,
-      lastSale,
+      lastSale: finalLastSale,
     },
     products: productsList,
     salesByDate,
@@ -306,16 +334,32 @@ export const useReportsData = (): UseReportsDataReturn => {
       const db = await DatabaseService.getInstance().getDatabase();
       const startISO = start.toISOString();
       const endISO = end.toISOString();
+      const startKey = formatDateKey(start);
+      const endKey = formatDateKey(end);
 
       const totalsRows = await db.getAllAsync<any>(
         'SELECT SUM(COALESCE(totalPrice, total)) as revenue, SUM(quantity) as items, COUNT(*) as lines, MAX(saleDate) as lastSale FROM sales WHERE saleDate >= ? AND saleDate < ?',
         [startISO, endISO]
       );
       const totalsRow = totalsRows?.[0] ?? {};
-      const revenue = Number(totalsRow.revenue ?? 0);
+      const baseRevenue = Number(totalsRow.revenue ?? 0);
       const items = Number(totalsRow.items ?? 0);
       const lines = Number(totalsRow.lines ?? 0);
+
+      const routeRows = await db.getAllAsync<any>(
+        `SELECT date as day, SUM(expectedTotal) as total
+         FROM coolers
+         WHERE status = 'liquidada' AND date >= ? AND date < ?
+         GROUP BY date`,
+        [startKey, endKey]
+      );
+      const routeRevenue = routeRows.reduce((sum, row) => sum + Number(row.total ?? 0), 0);
+      const revenue = baseRevenue + routeRevenue;
       const avgTicket = lines > 0 ? revenue / lines : 0;
+      const routeLastSale = routeRows.reduce((latest, row) => {
+        const day = row?.day ?? '';
+        return day && (!latest || day > latest) ? day : latest;
+      }, '');
 
       const topProductsRows = await db.getAllAsync<any>(
         `SELECT COALESCE(p.name, 'Producto') as name, SUM(s.quantity) as qty, SUM(COALESCE(s.totalPrice, s.total)) as total
@@ -336,6 +380,32 @@ export const useReportsData = (): UseReportsDataReturn => {
         [startISO, endISO]
       );
 
+      const salesByDateMap = new Map<string, number>();
+      salesByDateRows.forEach((row) => {
+        const day = row?.day;
+        if (!day) {
+          return;
+        }
+        salesByDateMap.set(day, (salesByDateMap.get(day) ?? 0) + Number(row.total ?? 0));
+      });
+      routeRows.forEach((row) => {
+        const day = row?.day;
+        if (!day) {
+          return;
+        }
+        salesByDateMap.set(day, (salesByDateMap.get(day) ?? 0) + Number(row.total ?? 0));
+      });
+      const salesByDate = Array.from(salesByDateMap.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([day, total]) => {
+          const [, month, dayOfMonth] = String(day ?? '').split('-');
+          return {
+            date: day,
+            label: month && dayOfMonth ? `${dayOfMonth}/${month}` : day,
+            value: total,
+          };
+        });
+
       const salesTableInfo = await db.getAllAsync<any>('PRAGMA table_info(sales);');
       const hasPaymentMethodColumn = salesTableInfo.some((c: any) => c.name === 'paymentMethod');
       let paymentRows: { method: string; amount: number }[] = [];
@@ -348,6 +418,14 @@ export const useReportsData = (): UseReportsDataReturn => {
           [startISO, endISO]
         );
         paymentRows = raw.map(r => ({ method: r.method ?? 'cash', amount: Number(r.total ?? 0) }));
+      }
+      if (routeRevenue > 0) {
+        const cashRow = paymentRows.find((row) => row.method === 'cash');
+        if (cashRow) {
+          cashRow.amount += routeRevenue;
+        } else {
+          paymentRows.push({ method: 'cash', amount: routeRevenue });
+        }
       }
 
       const stockRows = await db.getAllAsync<any>(
@@ -374,21 +452,17 @@ export const useReportsData = (): UseReportsDataReturn => {
           revenue,
           items,
           avgTicket,
-          lastSale: totalsRow.lastSale ?? null,
+          lastSale: (() => {
+            const candidates = [totalsRow.lastSale, routeLastSale].filter(Boolean) as string[];
+            return candidates.length ? candidates.sort().pop() : null;
+          })(),
         },
         products: topProductsRows.map((row: any) => ({
           name: row.name,
           quantity: Number(row.qty ?? 0),
           revenue: Number(row.total ?? 0),
         })),
-        salesByDate: salesByDateRows.map((row: any) => {
-          const [year, month, day] = String(row.day ?? '').split('-');
-          return {
-            date: row.day,
-            label: month && day ? `${day}/${month}` : row.day,
-            value: Number(row.total ?? 0),
-          };
-        }),
+        salesByDate,
         paymentMethods: paymentSlices,
         stockMovements: stockRows.map((row: any) => ({
           product: row.product ?? 'Producto',

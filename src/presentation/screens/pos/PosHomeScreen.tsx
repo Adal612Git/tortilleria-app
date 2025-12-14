@@ -12,8 +12,7 @@ export default function PosHomeScreen() {
   const actions = [
     { title: 'Nueva venta', subtitle: 'Cobros en caja', icon: 'pricetag-outline', color: '#2563EB', onPress: () => nav.navigate('Sales') },
     { title: 'Historial', subtitle: 'Boletas recientes', icon: 'time-outline', color: '#7C3AED', onPress: () => nav.navigate('SalesHistory') },
-    { title: 'Reportes de venta', subtitle: 'Graficas y metricas', icon: 'stats-chart-outline', color: '#16A34A', onPress: () => nav.navigate('Reports') },
-    { title: 'Arqueo de caja', subtitle: 'Control de efectivo', icon: 'cash-outline', color: '#EA580C', onPress: () => nav.navigate('CashAudit') },
+    { title: 'Corte de caja', subtitle: 'Control de efectivo', icon: 'cash-outline', color: '#EA580C', onPress: () => nav.navigate('CashCut') },
   ];
 
   return (

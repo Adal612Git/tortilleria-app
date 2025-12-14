@@ -8,17 +8,25 @@ type Props = {
   height?: number;
   barColor?: string;
   valueFormatter?: (value: number) => string;
+  maxBarThickness?: number;
+  barSpacing?: number;
 };
 
 const GRID_STEPS = [0.25, 0.5, 0.75];
+const DEFAULT_BAR_THICKNESS = 48;
+const DEFAULT_BAR_SPACING = 6;
 
 export default function BarChart({
   data,
   height = 160,
   barColor = '#2563EB',
   valueFormatter,
+  maxBarThickness,
+  barSpacing,
 }: Props) {
   const max = Math.max(...data.map((d) => d.value), 1);
+  const resolvedBarWidth = maxBarThickness ?? DEFAULT_BAR_THICKNESS;
+  const resolvedSpacing = barSpacing ?? DEFAULT_BAR_SPACING;
   return (
     <View style={[styles.container, { height }]}>
       <View style={styles.grid}>
@@ -32,9 +40,25 @@ export default function BarChart({
         const barHeight = Math.max(12, rawHeight);
         const labelValue = valueFormatter ? valueFormatter(d.value) : d.value.toFixed(0);
         return (
-          <View key={idx} style={styles.item}>
+          <View
+            key={idx}
+            style={[
+              styles.item,
+              { width: resolvedBarWidth },
+              idx < data.length - 1 && { marginRight: resolvedSpacing },
+            ]}
+          >
             <Text style={styles.valueLabel}>{labelValue}</Text>
-            <View style={[styles.bar, { height: barHeight, backgroundColor: barColor }]} />
+            <View
+              style={[
+                styles.bar,
+                {
+                  height: barHeight,
+                  width: resolvedBarWidth,
+                  backgroundColor: barColor,
+                },
+              ]}
+            />
             <Text style={styles.label} numberOfLines={1} allowFontScaling={false}>
               {d.label}
             </Text>
@@ -49,7 +73,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     paddingHorizontal: 8,
     position: 'relative',
   },
@@ -71,10 +95,8 @@ const styles = StyleSheet.create({
   },
   item: {
     alignItems: 'center',
-    width: 40,
   },
   bar: {
-    width: 24,
     borderTopLeftRadius: 6,
     borderTopRightRadius: 6,
     marginTop: 6,

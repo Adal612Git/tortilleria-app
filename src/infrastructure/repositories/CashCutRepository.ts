@@ -1,6 +1,6 @@
 import { DatabaseService } from '../database/DatabaseService';
 
-export type CashAudit = {
+export type CashCutRecord = {
   id: string;
   openingFloat: number;
   entries: number;
@@ -13,10 +13,10 @@ export type CashAudit = {
   createdAt: string;
 };
 
-export class CashAuditRepository {
+export class CashCutRepository {
   private db = DatabaseService.getInstance();
 
-  async list(limit = 20): Promise<CashAudit[]> {
+  async list(limit = 20): Promise<CashCutRecord[]> {
     const database = await this.db.getDatabase();
     const rows = await database.getAllAsync<any>(
       'SELECT * FROM cash_audits ORDER BY datetime(createdAt) DESC LIMIT ?',
@@ -36,7 +36,7 @@ export class CashAuditRepository {
     }));
   }
 
-  async create(audit: Omit<CashAudit, 'id'>): Promise<void> {
+  async create(audit: Omit<CashCutRecord, 'id'>): Promise<void> {
     const database = await this.db.getDatabase();
     await database.runAsync(
       `INSERT INTO cash_audits (openingFloat, entries, exits, cashSales, expectedCash, countedCash, difference, notes, createdAt)

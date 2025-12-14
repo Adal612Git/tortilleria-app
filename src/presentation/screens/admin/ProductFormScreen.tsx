@@ -20,18 +20,27 @@ export default function ProductFormScreen() {
   const [category, setCategory] = useState(existing?.category ?? 'tortilla');
   const [unit, setUnit] = useState(existing?.unit ?? 'kg');
 
+  const ALLOWED_KG_CATEGORIES = ['tortilla', 'masa'] as const;
+
   useEffect(() => {
     navigation.setOptions({ title: editing ? 'Editar Producto' : 'Nuevo Producto' });
   }, [editing]);
 
   const normalizedName = name.trim().toLowerCase();
   const isSalsa = category === 'otros' && normalizedName.includes('salsa');
+  const canSellByKg = ALLOWED_KG_CATEGORIES.includes(category as typeof ALLOWED_KG_CATEGORIES[number]);
 
   useEffect(() => {
     if (isSalsa && unit !== 'pieza') {
       setUnit('pieza');
     }
   }, [isSalsa, unit]);
+
+  useEffect(() => {
+    if (!canSellByKg && unit !== 'pieza') {
+      setUnit('pieza');
+    }
+  }, [canSellByKg, unit]);
 
   const onSubmit = async () => {
     const parsedPrice = parseFloat(price);
@@ -40,11 +49,12 @@ export default function ProductFormScreen() {
       Alert.alert('Validación', 'Nombre y precio son requeridos');
       return;
     }
+    const finalUnit = isSalsa ? 'pieza' : canSellByKg ? unit : 'pieza';
     try {
       if (editing && existing) {
-        await update(existing.id, { name, description, price: parsedPrice, stock: parsedStock, category, unit: isSalsa ? 'pieza' : unit });
+        await update(existing.id, { name, description, price: parsedPrice, stock: parsedStock, category, unit: finalUnit });
       } else {
-        await add({ name, description, price: parsedPrice, stock: parsedStock, unit: isSalsa ? 'pieza' : unit, category: category as any, isActive: true });
+        await add({ name, description, price: parsedPrice, stock: parsedStock, unit: finalUnit, category: category as any, isActive: true });
       }
       navigation.goBack();
     } catch (e: any) {
@@ -77,7 +87,7 @@ export default function ProductFormScreen() {
         <View style={styles.block}>
           <Text style={styles.label}>Unidad</Text>
           <View style={styles.chipsRow}>
-            {(['kg','pieza','docena'] as const).map(opt => {
+            {(canSellByKg ? ['kg', 'pieza', 'docena'] : ['pieza', 'docena']).map(opt => {
               const active = unit === opt || (isSalsa && opt === 'pieza');
               const disabled = isSalsa && opt !== 'pieza';
               return (
@@ -122,11 +132,10 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, marginRight: 8, marginBottom: 8 },
   chipActive: { backgroundColor: '#E65100' },
   chipInactive: { backgroundColor: '#F1F5F9' },
+  chipDisabled: { opacity: 0.4 },
   chipTextActive: { color: 'white', fontWeight: '600' },
   chipTextInactive: { color: '#212121' },
   hint: { color: '#64748B', marginTop: 4 },
   saveButton: { backgroundColor: '#E65100', paddingVertical: 14, borderRadius: 12 },
   saveButtonText: { color: 'white', textAlign: 'center', fontSize: 16, fontWeight: '700' },
 });
-
-

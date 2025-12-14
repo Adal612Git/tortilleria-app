@@ -1,8 +1,6 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { ChangeEvent, useCallback, useMemo, useState } from 'react';
 
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Platform } from 'react-native';
-
-import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -13,6 +11,8 @@ import BarChart from '../components/charts/BarChart';
 import { formatCurrency, formatQuantity } from '../utils/currency';
 
 import { useReportsData } from '../hooks/useReportsData';
+
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 
 
@@ -40,6 +40,21 @@ const formatDateDisplay = (value?: string) => {
 
   return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
 
+};
+
+const formatDateKey = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+const sanitizeCustomDate = (value: string) => value.replace(/[^0-9-]/g, '').slice(0, 10);
+
+const webDateInputStyle: React.CSSProperties = {
+  width: '100%',
+  borderWidth: 0,
+  padding: 0,
+  fontSize: 16,
+  color: '#0F172A',
+  fontWeight: '700',
+  backgroundColor: 'transparent',
 };
 
 const formatMonthLabel = (key: string) => {
@@ -157,10 +172,8 @@ export default function ReportsScreen() {
   } = useReportsData();
 
   const [chartMode, setChartMode] = useState<'day' | 'month'>('day');
-
   const [pickerState, setPickerState] = useState<{ field: 'start' | 'end' | null; value: Date }>({ field: null, value: new Date() });
-
-
+  const isWeb = Platform.OS === 'web';
 
   useFocusEffect(
 
@@ -258,8 +271,6 @@ export default function ReportsScreen() {
 
   }, [chartMode, data.salesByDate]);
 
-
-
   const openPicker = (field: 'start' | 'end') => {
 
     const base = field === 'start' ? customStart : customEnd;
@@ -314,8 +325,54 @@ export default function ReportsScreen() {
 
   const closePicker = () => setPickerState({ field: null, value: new Date() });
 
+  const handleWebRangeChange =
+    (field: 'start' | 'end') => (event: ChangeEvent<HTMLInputElement>) => {
+      const isoValue = sanitizeCustomDate(event.target.value);
+      if (!isoValue) {
+        if (field === 'start') {
+          setCustomStart('');
+        } else {
+          setCustomEnd('');
+        }
+        return;
+      }
+      if (field === 'start') {
+        setCustomStart(isoValue);
+        if (customEnd && isoValue > customEnd) {
+          setCustomEnd(isoValue);
+        }
+      } else {
+        setCustomEnd(isoValue);
+        if (customStart && isoValue < customStart) {
+          setCustomStart(isoValue);
+        }
+      }
+    };
 
-
+  const renderRangeField = (field: 'start' | 'end') => {
+    const label = field === 'start' ? 'Inicio' : 'Fin';
+    const currentValue = field === 'start' ? customStart : customEnd;
+    if (isWeb) {
+      return (
+        <View key={field} style={styles.rangePicker}>
+          <Text style={styles.rangeLabel}>{label}</Text>
+          <input
+            type="date"
+            value={currentValue}
+            onChange={handleWebRangeChange(field)}
+            max={formatDateKey(new Date())}
+            style={webDateInputStyle}
+          />
+        </View>
+      );
+    }
+    return (
+      <TouchableOpacity key={field} style={styles.rangePicker} onPress={() => openPicker(field)}>
+        <Text style={styles.rangeLabel}>{label}</Text>
+        <Text style={styles.rangeValue}>{formatDateDisplay(currentValue)}</Text>
+      </TouchableOpacity>
+    );
+  };
   return (
 
     <SafeAreaView style={styles.container}>
@@ -360,21 +417,9 @@ export default function ReportsScreen() {
 
           <View style={styles.rangeRow}>
 
-            <TouchableOpacity style={styles.rangePicker} onPress={() => openPicker('start')}>
+            {renderRangeField('start')}
 
-              <Text style={styles.rangeLabel}>Inicio</Text>
-
-              <Text style={styles.rangeValue}>{formatDateDisplay(customStart)}</Text>
-
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.rangePicker} onPress={() => openPicker('end')}>
-
-              <Text style={styles.rangeLabel}>Fin</Text>
-
-              <Text style={styles.rangeValue}>{formatDateDisplay(customEnd)}</Text>
-
-            </TouchableOpacity>
+            {renderRangeField('end')}
 
             <TouchableOpacity style={styles.rangeApply} onPress={refresh}>
 
@@ -386,9 +431,7 @@ export default function ReportsScreen() {
 
         )}
 
-
-
-        {pickerState.field && (
+        {!isWeb && pickerState.field && (
 
           <DateTimePicker
 
@@ -401,6 +444,8 @@ export default function ReportsScreen() {
             onChange={handlePickerChange}
 
             onTouchCancel={closePicker}
+
+            maximumDate={new Date()}
 
           />
 
@@ -507,7 +552,7 @@ export default function ReportsScreen() {
 
             <Text style={styles.sectionTitle}>Productos vendidos</Text>
 
-            <Text style={styles.sectionSubtitle}>Top del rango seleccionado</Text>
+            {/* <Text style={styles.sectionSubtitle}>Top del rango seleccionado</Text> */}
 
           </View>
 
@@ -713,8 +758,6 @@ const styles = StyleSheet.create({
 
   rangeLabel: { color: '#475569', marginBottom: 4, fontWeight: '600' },
 
-  rangeValue: { color: '#0F172A', fontWeight: '700' },
-
   rangeApply: { backgroundColor: '#2563EB', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12 },
 
   rangeButtonText: { color: 'white', fontWeight: '700' },
@@ -806,4 +849,3 @@ const styles = StyleSheet.create({
   stockBadgeText: { color: '#0F172A', fontWeight: '700' },
 
 });
-

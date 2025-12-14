@@ -109,7 +109,7 @@ export default function LoginScreen() {
             <Text style={styles.demoTitle}>Credenciales de Demo</Text>
             <Text style={styles.demoText}>Admin: admin@tortilleria.com / admin123</Text>
             <Text style={styles.demoText}>Empleado: empleado@tortilleria.com / empleado123</Text>
-            <Text style={styles.demoText}>Repartidor: repartidor@tortilleria.com / repartidor123</Text>
+            {/* Repartidor: no habilitado por ahora; solo volver si necesitamos reactivar acceso externo */}
           </View>
         </ScrollView>
       </SafeAreaView>

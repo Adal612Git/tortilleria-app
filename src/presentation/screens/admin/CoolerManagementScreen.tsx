@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { ChangeEvent, useEffect, useMemo, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
@@ -10,11 +10,13 @@ import {
   ActivityIndicator,
   Modal,
   Alert,
+  Platform,
 } from 'react-native';
 import { useRouteOperations } from '../../hooks/useRouteOperations';
 import { CoolerRecord } from '../../../domain/entities/RouteOperations';
-import { RouteOperationsRepository } from '../../../infrastructure/repositories/RouteOperationsRepository';
+import { RouteOperationsRepository } from '@infrastructure/repositories/RouteOperationsRepository';
 import { formatCurrency } from '../../utils/currency';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 // Every manual date needs to use Mexico City time so the UI matches the data served to the riders.
 const mexicoDateFormatter = new Intl.DateTimeFormat('en-CA', {
@@ -29,8 +31,6 @@ const formatMexicoDate = (offset = 0) => {
   base.setDate(base.getDate() + offset);
   return mexicoDateFormatter.format(base);
 };
-
-const sanitizeDateField = (value: string) => value.replace(/[^0-9-]/g, '').slice(0, 10);
 
 const parseDateInput = (value: string) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -110,8 +110,28 @@ export default function CoolerManagementScreen() {
   }, [riderMetrics, riders]);
 
   const historyRepo = useMemo(() => new RouteOperationsRepository(), []);
-  const [historyStart, setHistoryStart] = useState(formatMexicoDate(-7));
-  const [historyEnd, setHistoryEnd] = useState(formatMexicoDate(0));
+  const isWeb = Platform.OS === 'web';
+  const historyDateInputStyle: React.CSSProperties = {
+    borderWidth: 1,
+    borderColor: '#CBD5F5',
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: '#F8FAFC',
+    color: '#0F172A',
+    fontWeight: '600',
+    width: '100%',
+    boxSizing: 'border-box',
+  };
+  const [historyStartDate, setHistoryStartDate] = useState<Date>(
+    () => parseDateInput(formatMexicoDate(-7)) ?? new Date()
+  );
+  const [historyEndDate, setHistoryEndDate] = useState<Date>(
+    () => parseDateInput(formatMexicoDate(0)) ?? new Date()
+  );
+  const [historyPicker, setHistoryPicker] = useState<{ field: 'start' | 'end' | null; value: Date }>({
+    field: null,
+    value: new Date(),
+  });
   const [historyRecords, setHistoryRecords] = useState<CoolerRecord[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
@@ -121,12 +141,11 @@ export default function CoolerManagementScreen() {
   const [selectedProductId, setSelectedProductId] = useState<string | undefined>(undefined);
   const [kilosOut, setKilosOut] = useState(10);
   const [priceInput, setPriceInput] = useState('18.00');
-  const [initialCashInput, setInitialCashInput] = useState('0');
-  const [initialCashTouched, setInitialCashTouched] = useState(false);
 
   const [liquidateVisible, setLiquidateVisible] = useState(false);
   const [targetCooler, setTargetCooler] = useState<CoolerRecord | null>(null);
   const [wasteInput, setWasteInput] = useState('0');
+  const [returnInput, setReturnInput] = useState('0');
 
   const parseDecimal = (value: string) => Number(value.replace(/,/g, '.')) || 0;
 
@@ -143,8 +162,6 @@ export default function CoolerManagementScreen() {
     setSelectedProductId(defaultProductId);
     setKilosOut(10);
     setPriceInput(defaultPrice);
-    setInitialCashTouched(false);
-    setInitialCashInput((parseDecimal(defaultPrice) * 10).toFixed(2));
     setCreateVisible(true);
   };
 
@@ -154,26 +171,9 @@ export default function CoolerManagementScreen() {
     }
   };
 
-  useEffect(() => {
-    if (initialCashTouched) {
-      return;
-    }
-    const parsedPrice = parseDecimal(priceInput);
-    // Mantiene el efectivo sincronizado con precio * kilos mientras el usuario no lo modifique manualmente.
-    setInitialCashInput((parsedPrice * kilosOut).toFixed(2));
-  }, [initialCashTouched, priceInput, kilosOut]);
-
-  const handleInitialCashChange = (value: string) => {
-    setInitialCashTouched(true);
-    setInitialCashInput(value.replace(/[^0-9.,]/g, ''));
-  };
-
-  const updateHistoryStart = (value: string) => setHistoryStart(sanitizeDateField(value));
-  const updateHistoryEnd = (value: string) => setHistoryEnd(sanitizeDateField(value));
-
   const loadHistoryRange = async () => {
-    const startValue = sanitizeDateField(historyStart) || formatMexicoDate(-7);
-    const endValue = sanitizeDateField(historyEnd) || formatMexicoDate(0);
+    const startValue = formatDateKey(historyStartDate);
+    const endValue = formatDateKey(historyEndDate);
     const dates = buildDateRange(startValue, endValue);
     if (!dates.length) {
       setHistoryError('Selecciona fechas validas.');
@@ -202,6 +202,80 @@ export default function CoolerManagementScreen() {
     }
   };
 
+  const openHistoryPicker = (field: 'start' | 'end') => {
+    const base = field === 'start' ? historyStartDate : historyEndDate;
+    setHistoryPicker({ field, value: base });
+  };
+
+  const handleHistoryPickerChange = (_event: any, selectedDate?: Date) => {
+    if (!historyPicker.field) {
+      setHistoryPicker({ field: null, value: new Date() });
+      return;
+    }
+    if (selectedDate) {
+      const normalized = new Date(selectedDate);
+      if (historyPicker.field === 'start') {
+        setHistoryStartDate(normalized);
+        if (normalized > historyEndDate) {
+          setHistoryEndDate(normalized);
+        }
+      } else {
+        setHistoryEndDate(normalized);
+        if (normalized < historyStartDate) {
+          setHistoryStartDate(normalized);
+        }
+      }
+    }
+    setHistoryPicker({ field: null, value: new Date() });
+  };
+
+  const handleWebHistoryInputChange =
+    (field: 'start' | 'end') => (event: ChangeEvent<HTMLInputElement>) => {
+      const isoValue = event.target.value;
+      const parsed = parseDateInput(isoValue);
+      if (!parsed) {
+        return;
+      }
+      if (field === 'start') {
+        setHistoryStartDate(parsed);
+        if (parsed > historyEndDate) {
+          setHistoryEndDate(parsed);
+        }
+      } else {
+        setHistoryEndDate(parsed);
+        if (parsed < historyStartDate) {
+          setHistoryStartDate(parsed);
+        }
+      }
+    };
+
+  const renderHistoryField = (field: 'start' | 'end') => {
+    const dateValue = field === 'start' ? historyStartDate : historyEndDate;
+    const label = field === 'start' ? 'Desde' : 'Hasta';
+    if (isWeb) {
+      return (
+        <View key={field} style={styles.historyInputBox}>
+          <Text style={styles.label}>{label}</Text>
+          <input
+            type="date"
+            value={formatDateKey(dateValue)}
+            max={formatDateKey(new Date())}
+            onChange={handleWebHistoryInputChange(field)}
+            style={historyDateInputStyle}
+          />
+        </View>
+      );
+    }
+    return (
+      <TouchableOpacity key={field} style={styles.historyInputBox} onPress={() => openHistoryPicker(field)}>
+        <Text style={styles.label}>{label}</Text>
+        <View style={styles.historyInput}>
+          <Text style={styles.historyInputValue}>{formatDateKey(dateValue)}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   useEffect(() => {
     loadHistoryRange();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -228,21 +302,15 @@ export default function CoolerManagementScreen() {
       Alert.alert('Precio invalido', 'Ingresa un precio de ruta valido.');
       return;
     }
-    const parsedInitialCash = parseDecimal(initialCashInput);
-    if (parsedInitialCash < 0) {
-      Alert.alert('Efectivo invalido', 'Ingresa un monto de efectivo valido.');
-      return;
-    }
     try {
       await createCooler({
         riderId: selectedRider,
         kilosOut,
         routePrice: parsedPrice,
-        initialCash: parsedInitialCash,
+        initialCash: Number((parsedPrice * kilosOut).toFixed(2)),
         inventoryProductId: selectedProductId,
       });
       Alert.alert('Hielera creada', 'Se registro la hielera correctamente.');
-      setInitialCashTouched(false);
       setCreateVisible(false);
     } catch (err: any) {
       Alert.alert('No se pudo crear la hielera', err?.message ?? 'Intenta de nuevo.');
@@ -252,6 +320,7 @@ export default function CoolerManagementScreen() {
   const openLiquidation = (cooler: CoolerRecord) => {
     setTargetCooler(cooler);
     setWasteInput('0');
+    setReturnInput('0');
     setLiquidateVisible(true);
   };
 
@@ -259,6 +328,7 @@ export default function CoolerManagementScreen() {
     if (!liquidating) {
       setLiquidateVisible(false);
       setTargetCooler(null);
+      setReturnInput('0');
     }
   };
 
@@ -266,23 +336,24 @@ export default function CoolerManagementScreen() {
     if (!targetCooler) {
       return;
     }
-    const coldWaste = Number(wasteInput) || 0;
-    if (coldWaste < 0) {
+    const coldWaste = parseDecimal(wasteInput);
+    const returnedKilos = parseDecimal(returnInput);
+    if (coldWaste < 0 || returnedKilos < 0) {
       Alert.alert('Valores invalidos', 'Los kilos no pueden ser negativos.');
       return;
     }
-    if (coldWaste > targetCooler.kilosOut) {
+    if (coldWaste + returnedKilos > targetCooler.kilosOut) {
       Alert.alert('Revision', 'La merma no puede exceder la carga inicial.');
       return;
     }
-    // Bloqueamos la liquidacion al efectivo asignado para evitar manipulaciones posteriores.
-    const receivedTotal = targetCooler.initialCash;
+    // Calculamos el efectivo que el repartidor debe entregar tras descontar la merma y los kilos devueltos.
+    const computedReceived = Number(expectedCash().toFixed(2));
     try {
       await liquidateCooler({
         coolerId: targetCooler.id!,
-        goodReturn: 0,
+        goodReturn: returnedKilos,
         coldWaste,
-        receivedTotal,
+        receivedTotal: computedReceived,
       });
       Alert.alert('Liquidacion registrada', 'La hielera fue liquidada.');
       setLiquidateVisible(false);
@@ -296,8 +367,9 @@ export default function CoolerManagementScreen() {
     if (!targetCooler) {
       return 0;
     }
-    const coldWaste = Number(wasteInput) || 0;
-    return Math.max(0, targetCooler.kilosOut - coldWaste);
+    const coldWaste = parseDecimal(wasteInput);
+    const returnedKilos = parseDecimal(returnInput);
+    return Math.max(0, targetCooler.kilosOut - coldWaste - returnedKilos);
   };
 
   const expectedCash = () => {
@@ -316,9 +388,9 @@ export default function CoolerManagementScreen() {
   };
   return (
     <>
-      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={[styles.container, isWeb && styles.containerWeb]} edges={['top', 'left', 'right']}>
         <ScrollView
-        style={styles.scroll}
+        style={[styles.scroll, isWeb && styles.scrollWeb]}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
@@ -504,26 +576,8 @@ export default function CoolerManagementScreen() {
             <Text style={styles.sectionSubtitle}>Consulta fechas anteriores</Text>
           </View>
           <View style={styles.historyFilters}>
-            <View style={styles.historyInputBox}>
-              <Text style={styles.label}>Desde</Text>
-              <TextInput
-                value={historyStart}
-                onChangeText={updateHistoryStart}
-                placeholder="2025-12-05"
-                placeholderTextColor="#94A3B8"
-                style={styles.historyInput}
-              />
-            </View>
-            <View style={styles.historyInputBox}>
-              <Text style={styles.label}>Hasta</Text>
-              <TextInput
-                value={historyEnd}
-                onChangeText={updateHistoryEnd}
-                placeholder="2025-12-11"
-                placeholderTextColor="#94A3B8"
-                style={styles.historyInput}
-              />
-            </View>
+            {renderHistoryField('start')}
+            {renderHistoryField('end')}
             <TouchableOpacity
               style={[styles.historyButton, historyLoading ? styles.disabledButton : null]}
               onPress={loadHistoryRange}
@@ -536,6 +590,15 @@ export default function CoolerManagementScreen() {
               )}
             </TouchableOpacity>
           </View>
+          {!isWeb && historyPicker.field && (
+            <DateTimePicker
+              value={historyPicker.value}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'calendar'}
+              onChange={handleHistoryPickerChange}
+              maximumDate={new Date()}
+            />
+          )}
           {historyError ? <Text style={styles.errorText}>{historyError}</Text> : null}
           <View style={styles.historyList}>
             {historyRecords.length === 0 ? (
@@ -629,14 +692,6 @@ export default function CoolerManagementScreen() {
                   style={styles.priceInput}
                 />
 
-                <Text style={styles.modalLabel}>Efectivo recibido (ruta)</Text>
-                <TextInput
-                  value={initialCashInput}
-                  onChangeText={handleInitialCashChange}
-                  keyboardType="decimal-pad"
-                  style={styles.priceInput}
-                />
-
                 <Text style={styles.modalLabel}>Producto (inventario)</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.productRow}>
                   {products.map((product) => (
@@ -693,6 +748,13 @@ export default function CoolerManagementScreen() {
                 <TextInput
                   value={wasteInput}
                   onChangeText={setWasteInput}
+                  keyboardType="decimal-pad"
+                  style={styles.priceInput}
+                />
+                <Text style={styles.modalLabel}>Kilos devueltos (kg)</Text>
+                <TextInput
+                  value={returnInput}
+                  onChangeText={setReturnInput}
                   keyboardType="decimal-pad"
                   style={styles.priceInput}
                 />
@@ -757,6 +819,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F1F5F9',
+  },
+  containerWeb: {
+    maxHeight: '100vh',
+  },
+  scrollWeb: {
+    maxHeight: '100vh',
+    overflowY: 'auto',
   },
   scroll: {
     flex: 1,
@@ -1089,6 +1158,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     backgroundColor: '#F8FAFC',
+  },
+  historyInputValue: {
     color: '#0F172A',
     fontWeight: '600',
   },
@@ -1277,4 +1348,3 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
-
