@@ -144,7 +144,6 @@ export default function CoolerManagementScreen() {
 
   const [liquidateVisible, setLiquidateVisible] = useState(false);
   const [targetCooler, setTargetCooler] = useState<CoolerRecord | null>(null);
-  const [wasteInput, setWasteInput] = useState('0');
   const [returnInput, setReturnInput] = useState('0');
 
   const parseDecimal = (value: string) => Number(value.replace(/,/g, '.')) || 0;
@@ -297,6 +296,14 @@ export default function CoolerManagementScreen() {
       Alert.alert('Inventario', 'Selecciona un producto para descontar del inventario.');
       return;
     }
+    const inventoryProduct = products.find((product) => product.id === selectedProductId);
+    if (inventoryProduct && inventoryProduct.stock < kilosOut) {
+      Alert.alert(
+        'Stock insuficiente',
+        `Solo hay ${inventoryProduct.stock.toFixed(2)} ${inventoryProduct.unit} disponibles de ${inventoryProduct.name}.`
+      );
+      return;
+    }
     const parsedPrice = parseDecimal(priceInput);
     if (!parsedPrice || parsedPrice <= 0) {
       Alert.alert('Precio invalido', 'Ingresa un precio de ruta valido.');
@@ -319,7 +326,6 @@ export default function CoolerManagementScreen() {
 
   const openLiquidation = (cooler: CoolerRecord) => {
     setTargetCooler(cooler);
-    setWasteInput('0');
     setReturnInput('0');
     setLiquidateVisible(true);
   };
@@ -336,23 +342,22 @@ export default function CoolerManagementScreen() {
     if (!targetCooler) {
       return;
     }
-    const coldWaste = parseDecimal(wasteInput);
     const returnedKilos = parseDecimal(returnInput);
-    if (coldWaste < 0 || returnedKilos < 0) {
+    if (returnedKilos < 0) {
       Alert.alert('Valores invalidos', 'Los kilos no pueden ser negativos.');
       return;
     }
-    if (coldWaste + returnedKilos > targetCooler.kilosOut) {
-      Alert.alert('Revision', 'La merma no puede exceder la carga inicial.');
+    if (returnedKilos > targetCooler.kilosOut) {
+      Alert.alert('Revision', 'Los kilos devueltos no pueden exceder la carga inicial.');
       return;
     }
-    // Calculamos el efectivo que el repartidor debe entregar tras descontar la merma y los kilos devueltos.
+    // Calculamos el efectivo que el repartidor debe entregar tras descontar los kilos devueltos.
     const computedReceived = Number(expectedCash().toFixed(2));
     try {
       await liquidateCooler({
         coolerId: targetCooler.id!,
         goodReturn: returnedKilos,
-        coldWaste,
+        coldWaste: 0,
         receivedTotal: computedReceived,
       });
       Alert.alert('Liquidacion registrada', 'La hielera fue liquidada.');
@@ -367,9 +372,8 @@ export default function CoolerManagementScreen() {
     if (!targetCooler) {
       return 0;
     }
-    const coldWaste = parseDecimal(wasteInput);
     const returnedKilos = parseDecimal(returnInput);
-    return Math.max(0, targetCooler.kilosOut - coldWaste - returnedKilos);
+    return Math.max(0, targetCooler.kilosOut - returnedKilos);
   };
 
   const expectedCash = () => {
@@ -446,10 +450,10 @@ export default function CoolerManagementScreen() {
               <Text style={styles.metricValue}>{routeBox?.totalSold ?? 0} kg</Text>
               <Text style={styles.metricLabel}>Venta neta</Text>
             </View>
-            <View style={styles.metricBox}>
-              <Text style={styles.metricValue}>{routeBox?.totalWaste ?? 0} kg</Text>
-              <Text style={styles.metricLabel}>Merma acumulada</Text>
-            </View>
+          <View style={styles.metricBox}>
+            <Text style={styles.metricValue}>{routeBox?.totalWaste ?? 0} kg</Text>
+            <Text style={styles.metricLabel}>Merma / frias (kg)</Text>
+          </View>
             <View style={styles.metricBox}>
               <Text style={styles.metricValue}>{routeBox?.ridersInRoute ?? 0}</Text>
               <Text style={styles.metricLabel}>Repartidores</Text>
@@ -744,13 +748,6 @@ export default function CoolerManagementScreen() {
             {targetCooler ? (
               <>
                 <Text style={styles.modalSummary}>Carga inicial: {targetCooler.kilosOut} kg</Text>
-                <Text style={styles.modalLabel}>Merma / frias (kg)</Text>
-                <TextInput
-                  value={wasteInput}
-                  onChangeText={setWasteInput}
-                  keyboardType="decimal-pad"
-                  style={styles.priceInput}
-                />
                 <Text style={styles.modalLabel}>Kilos devueltos (kg)</Text>
                 <TextInput
                   value={returnInput}

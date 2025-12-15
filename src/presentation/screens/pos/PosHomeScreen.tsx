@@ -27,7 +27,7 @@ export default function PosHomeScreen() {
       <View style={styles.grid}>
         {actions.map((a, i) => (
           <TouchableOpacity key={i} style={[styles.card, { backgroundColor: a.color }]} onPress={a.onPress}>
-            <Ionicons name={a.icon as any} size={32} color='white' style={styles.icon} />
+            {/* <Ionicons name={a.icon as any} size={32} color='white' style={styles.icon} /> */}
             <View>
               <Text style={styles.cardTitle} className="dashboard-card-title">{a.title}</Text>
               <Text style={styles.cardSubtitle} className="dashboard-card-subtitle">{a.subtitle}</Text>

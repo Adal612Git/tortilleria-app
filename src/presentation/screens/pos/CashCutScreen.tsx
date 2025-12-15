@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,12 @@ import {
   ActivityIndicator,
   Alert,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatCurrency } from '../../utils/currency';
 import { useCashCut } from '../../hooks/useCashCut';
+import { openCashCut, useCashCutState } from '../../hooks/useCashCutState';
 
 const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
 const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -31,13 +33,14 @@ const formatCutDate = (iso: string) => {
 
 export default function CashCutScreen() {
   const { audits, loading, error, todaySales, recordCut } = useCashCut();
-  const [openingFloat, setOpeningFloat] = useState('0');
+  const { state: cutState, refresh: refreshCutState } = useCashCutState();
+  const [openingFloatInput, setOpeningFloatInput] = useState('0');
   const [countedCash, setCountedCash] = useState('0');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const latestCut = audits[0];
-  const parsedOpening = Number(openingFloat) || 0;
+  const parsedOpening = cutState.isOpen ? cutState.openingFloat : Number(openingFloatInput) || 0;
   const parsedCounted = Number(countedCash) || 0;
   const expected = parsedOpening + todaySales;
   const gap = parsedCounted - expected;
@@ -56,7 +59,32 @@ export default function CashCutScreen() {
     [latestCut, todaySales, parsedOpening, expected, gap]
   );
 
+  useEffect(() => {
+    if (cutState.isOpen) {
+      setOpeningFloatInput(cutState.openingFloat.toString());
+    }
+  }, [cutState.isOpen, cutState.openingFloat]);
+
+  const handleOpen = async () => {
+    const parsed = Number(openingFloatInput) || 0;
+    if (parsed <= 0) {
+      Alert.alert('Fondo requerido', 'Ingresa un monto de inicio mayor a cero');
+      return;
+    }
+    try {
+      await openCashCut(parsed);
+      refreshCutState();
+      Alert.alert('Caja abierta', 'Ya puedes cobrar operaciones.');
+    } catch (err: any) {
+      Alert.alert('Error', err?.message ?? 'No se pudo abrir la caja');
+    }
+  };
+
   const handleSubmit = async () => {
+    if (!cutState.isOpen) {
+      Alert.alert('Caja cerrada', 'Abre la caja antes de confirmar el corte.');
+      return;
+    }
     try {
       setSubmitting(true);
       await recordCut({
@@ -64,9 +92,10 @@ export default function CashCutScreen() {
         countedCash: parsedCounted,
         notes,
       });
-      setOpeningFloat('0');
       setCountedCash('0');
       setNotes('');
+      setOpeningFloatInput('0');
+      setTimeout(() => refreshCutState(), 250);
       Alert.alert('Corte registrado', 'El corte de caja se guardó correctamente.');
     } catch (err: any) {
       Alert.alert('Error', err?.message ?? 'No se pudo registrar el corte.');
@@ -76,8 +105,12 @@ export default function CashCutScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+    <SafeAreaView style={[styles.container, Platform.OS === 'web' && styles.containerWeb]}>
+      <ScrollView
+        style={[styles.scroll, Platform.OS === 'web' && styles.scrollWeb]}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.title}>Corte de caja</Text>
@@ -104,54 +137,63 @@ export default function CashCutScreen() {
         </ScrollView>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Registrar nuevo corte</Text>
+          <Text style={styles.sectionTitle}>{cutState.isOpen ? 'Registrar corte' : 'Abrir caja'}</Text>
           <Text style={styles.muted}>Ventas en efectivo del día: {formatCurrency(todaySales)}</Text>
 
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Monto de inicio</Text>
-            <TextInput
-              style={styles.input}
-              keyboardType="numeric"
-              value={openingFloat}
-              onChangeText={setOpeningFloat}
-              placeholder="0.00"
-            />
-          </View>
+          {!cutState.isOpen ? (
+            <>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Monto de inicio</Text>
+                <TextInput
+                  style={styles.input}
+                  keyboardType="numeric"
+                  value={openingFloatInput}
+                  onChangeText={setOpeningFloatInput}
+                  placeholder="0.00"
+                />
+              </View>
+              <TouchableOpacity style={[styles.submitBtn, submitting && styles.submitBtnDisabled]} onPress={handleOpen}>
+                <Text style={styles.submitText}>Abrir caja</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Conteo en caja</Text>
+                <TextInput
+                  style={styles.input}
+                  keyboardType="numeric"
+                  value={countedCash}
+                  onChangeText={setCountedCash}
+                  placeholder="0.00"
+                />
+              </View>
 
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Conteo en caja</Text>
-            <TextInput
-              style={styles.input}
-              keyboardType="numeric"
-              value={countedCash}
-              onChangeText={setCountedCash}
-              placeholder="0.00"
-            />
-          </View>
+              <View style={styles.resultRow}>
+                <Text style={styles.resultLabel}>Conteo en caja (inicio + ventas)</Text>
+                <Text style={styles.resultValue}>{formatCurrency(expected)}</Text>
+              </View>
 
-          <View style={styles.resultRow}>
-            <Text style={styles.resultLabel}>Total esperado en caja</Text>
-            <Text style={styles.resultValue}>{formatCurrency(expected)}</Text>
-          </View>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Notas</Text>
+                <TextInput
+                  style={[styles.input, styles.notesInput]}
+                  value={notes}
+                  onChangeText={setNotes}
+                  placeholder="Observaciones"
+                  multiline
+                />
+              </View>
 
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Notas</Text>
-            <TextInput
-              style={[styles.input, styles.notesInput]}
-              value={notes}
-              onChangeText={setNotes}
-              placeholder="Observaciones"
-              multiline
-            />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
-            onPress={handleSubmit}
-            disabled={submitting}
-          >
-            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Confirmar corte</Text>}
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
+                onPress={handleSubmit}
+                disabled={submitting}
+              >
+                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Confirmar corte</Text>}
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -184,7 +226,10 @@ export default function CashCutScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
-  content: { padding: 16, paddingBottom: 32 },
+  scroll: { flex: 1 },
+  scrollWeb: { maxHeight: '100vh', overflowY: 'auto' },
+  containerWeb: { maxHeight: '100vh' },
+  content: { padding: 16, paddingBottom: 32, flexGrow: 1 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { fontSize: 24, fontWeight: '800', color: '#0F172A' },
   headerDate: { color: '#64748B', fontWeight: '600', marginTop: 2 },

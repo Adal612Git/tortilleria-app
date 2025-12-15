@@ -5,7 +5,6 @@ import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
 import UserManagementScreen from '../screens/admin/UserManagementScreen';
 import ProductListScreen from '../screens/admin/ProductListScreen';
 import ReportsScreen from '../screens/ReportsScreen';
-import CoolerCalendarScreen from '../screens/admin/CoolerCalendarScreen';
 import { Ionicons } from '@expo/vector-icons';
 
 export type AdminTabParamList = {
@@ -45,7 +44,6 @@ export default function AdminTabsNavigator() {
       <Tab.Screen name="Products" component={ProductListScreen} options={{ title: 'Productos' }} />
       <Tab.Screen name="Users" component={UserManagementScreen} options={{ title: 'Usuarios' }} />
       <Tab.Screen name="Reports" component={ReportsScreen} options={{ title: 'Reportes' }} />
-      <Tab.Screen name="CoolerCalendar" component={CoolerCalendarScreen} options={{ title: 'Calendario' }} />
     </Tab.Navigator>
   );
 }

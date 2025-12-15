@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal, TextInput, Alert, Switch } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal, TextInput, Alert, Switch, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useAuthStore } from '../../store/authStore';
@@ -97,9 +97,25 @@ export default function UserManagementScreen() {
     }
   };
 
+  const performDelete = async (u: any) => {
+    try {
+      await repo.deleteUser(u.id);
+      await load();
+    } catch (e: any) {
+      Alert.alert('Error', e.message ?? 'No fue posible eliminar el usuario');
+    }
+  };
+
   const remove = async (u: any) => {
     if (u.id === currentUser?.id) {
       Alert.alert('Usuarios', 'No puedes eliminar tu propio usuario');
+      return;
+    }
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const confirmed = window.confirm(`Eliminar a ${u.name}?`);
+      if (confirmed) {
+        await performDelete(u);
+      }
       return;
     }
     Alert.alert('Eliminar', `Eliminar a ${u.name}?`, [
@@ -107,14 +123,7 @@ export default function UserManagementScreen() {
       {
         text: 'Eliminar',
         style: 'destructive',
-        onPress: async () => {
-          try {
-            await repo.deleteUser(u.id);
-            await load();
-          } catch (e: any) {
-            Alert.alert('Error', e.message);
-          }
-        },
+        onPress: async () => performDelete(u),
       },
     ]);
   };
@@ -136,21 +145,18 @@ export default function UserManagementScreen() {
 
       <ScrollView contentContainerStyle={styles.listContainer}>
         {users.map((user) => (
-          <Swipeable
-            key={user.id}
-            renderRightActions={() => (
-              <View style={styles.swipeActions}>
-                {user.id !== currentUserId && (
-                  <TouchableOpacity style={[styles.swipeButton, styles.swipeDelete]} onPress={() => remove(user)}>
-                    <Text style={styles.swipeButtonText}>Eliminar</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity style={[styles.swipeButton, styles.swipeEdit]} onPress={() => openEdit(user)}>
-                  <Text style={styles.swipeButtonText}>Editar</Text>
+          <Swipeable key={user.id} renderRightActions={() => (
+            <View style={styles.swipeActions}>
+              {user.id !== currentUserId && (
+                <TouchableOpacity style={[styles.swipeButton, styles.swipeDelete]} onPress={() => remove(user)}>
+                  <Text style={styles.swipeButtonText}>Eliminar</Text>
                 </TouchableOpacity>
-              </View>
-            )}
-          >
+              )}
+              <TouchableOpacity style={[styles.swipeButton, styles.swipeEdit]} onPress={() => openEdit(user)}>
+                <Text style={styles.swipeButtonText}>Editar</Text>
+              </TouchableOpacity>
+            </View>
+          )}>
             <View style={styles.card}>
               <View style={styles.cardHeaderRow}>
                 <View style={{ flex: 1 }}>
@@ -168,6 +174,16 @@ export default function UserManagementScreen() {
                         {user.isActive ? 'Activo' : 'Inactivo'}
                       </Text>
                     </View>
+                  </View>
+                  <View style={styles.cardActions}>
+                    <TouchableOpacity style={styles.inlineButton} onPress={() => openEdit(user)}>
+                      <Text style={styles.inlineButtonText}>Editar</Text>
+                    </TouchableOpacity>
+                    {user.id !== currentUserId && (
+                      <TouchableOpacity style={[styles.inlineButton, styles.inlineButtonDelete]} onPress={() => remove(user)}>
+                        <Text style={[styles.inlineButtonText, styles.inlineButtonTextDelete]}>Eliminar</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
               </View>
@@ -288,6 +304,12 @@ const styles = StyleSheet.create({
   inactiveTag: { backgroundColor: '#FEE2E2' },
   activeTagText: { color: '#166534' },
   inactiveTagText: { color: '#991B1B' },
+
+  cardActions: { flexDirection: 'row', marginTop: 12 },
+  inlineButton: { backgroundColor: '#EEF2FF', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 14, marginRight: 8 },
+  inlineButtonDelete: { backgroundColor: '#FEF2F2' },
+  inlineButtonText: { fontWeight: '700', color: '#1D4ED8' },
+  inlineButtonTextDelete: { color: '#B91C1C' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: 'white', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16 },
   modalTitle: { fontSize: 18, fontWeight: '800', color: '#111827', marginBottom: 8 },

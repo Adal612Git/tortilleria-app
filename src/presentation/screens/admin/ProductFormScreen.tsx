@@ -87,7 +87,7 @@ export default function ProductFormScreen() {
         <View style={styles.block}>
           <Text style={styles.label}>Unidad</Text>
           <View style={styles.chipsRow}>
-            {(canSellByKg ? ['kg', 'pieza', 'docena'] : ['pieza', 'docena']).map(opt => {
+            {(canSellByKg ? ['kg', 'pieza' /* 'docena' se mantiene solo para referencia futura */] : ['pieza']).map(opt => {
               const active = unit === opt || (isSalsa && opt === 'pieza');
               const disabled = isSalsa && opt !== 'pieza';
               return (

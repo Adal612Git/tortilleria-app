@@ -20,6 +20,13 @@ type StockMovement = {
   lastSale?: string | null;
 };
 
+type ProductReportLine = {
+  name: string;
+  category?: string;
+  quantity: number;
+  revenue: number;
+};
+
 type ReportsData = {
   totals: {
     revenue: number;
@@ -27,7 +34,7 @@ type ReportsData = {
     avgTicket: number;
     lastSale?: string | null;
   };
-  products: { name: string; quantity: number; revenue: number }[];
+  products: ProductReportLine[];
   salesByDate: { label: string; value: number; date: string }[];
   paymentMethods: PaymentSlice[];
   stockMovements: StockMovement[];
@@ -84,9 +91,9 @@ const buildFakeData = (): ReportsData => ({
     lastSale: new Date().toISOString(),
   },
   products: [
-    { name: 'Tortilla de maiz', quantity: 210, revenue: 6300 },
-    { name: 'Masa especial', quantity: 130, revenue: 3900 },
-    { name: 'Tostada horneada', quantity: 80, revenue: 3000 },
+    { name: 'Tortilla de maiz', category: 'tortilla', quantity: 210, revenue: 6300 },
+    { name: 'Masa especial', category: 'masa', quantity: 130, revenue: 3900 },
+    { name: 'Tostada horneada', category: 'tostada', quantity: 80, revenue: 3000 },
   ],
   salesByDate: Array.from({ length: 7 }).map((_, idx) => {
     const date = new Date();
@@ -362,10 +369,10 @@ export const useReportsData = (): UseReportsDataReturn => {
       }, '');
 
       const topProductsRows = await db.getAllAsync<any>(
-        `SELECT COALESCE(p.name, 'Producto') as name, SUM(s.quantity) as qty, SUM(COALESCE(s.totalPrice, s.total)) as total
+        `SELECT COALESCE(p.name, 'Producto') as name, p.category as category, SUM(s.quantity) as qty, SUM(COALESCE(s.totalPrice, s.total)) as total
          FROM sales s LEFT JOIN products p ON p.id = s.productId
          WHERE s.saleDate >= ? AND s.saleDate < ?
-         GROUP BY name
+         GROUP BY name, category
          ORDER BY qty DESC
          LIMIT 8`,
         [startISO, endISO]
@@ -459,6 +466,7 @@ export const useReportsData = (): UseReportsDataReturn => {
         },
         products: topProductsRows.map((row: any) => ({
           name: row.name,
+          category: row.category,
           quantity: Number(row.qty ?? 0),
           revenue: Number(row.total ?? 0),
         })),

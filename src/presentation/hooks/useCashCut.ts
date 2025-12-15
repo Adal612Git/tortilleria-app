@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DatabaseService } from '../../infrastructure/database/DatabaseService';
 import { CashCutRepository, CashCutRecord } from '../../infrastructure/repositories/CashCutRepository';
 import { useAuthStore } from '../store/authStore';
+import { closeCashCut } from './useCashCutState';
 
 type CreateCutInput = {
   openingFloat: number;
@@ -34,13 +35,34 @@ export const useCashCut = () => {
   const fetchTodaySales = useCallback(async () => {
     const db = await DatabaseService.getInstance().getDatabase();
     const { start, end } = getTodayBounds();
-    let query =
-      'SELECT SUM(COALESCE(totalPrice, total)) as revenue FROM sales WHERE saleDate >= ? AND saleDate <= ? AND COALESCE(paymentMethod, \'cash\') = ?';
-    const params: any[] = [start, end, 'cash'];
-    if (userId) {
+    const tableInfo = await db.getAllAsync<any>('PRAGMA table_info(sales);');
+    const hasTotalPrice = tableInfo.some((col) => col.name === 'totalPrice');
+    const hasTotal = tableInfo.some((col) => col.name === 'total');
+    const hasPaymentMethod = tableInfo.some((col) => col.name === 'paymentMethod');
+    const hasUserId = tableInfo.some((col) => col.name === 'userId');
+
+    if (!hasTotalPrice && !hasTotal) {
+      setTodaySales(0);
+      return;
+    }
+
+    const revenueExpr = hasTotalPrice && hasTotal
+      ? 'SUM(COALESCE(totalPrice, total))'
+      : hasTotalPrice
+        ? 'SUM(totalPrice)'
+        : 'SUM(total)';
+
+    let query = `SELECT ${revenueExpr} as revenue FROM sales WHERE saleDate >= ? AND saleDate <= ?`;
+    const params: any[] = [start, end];
+    if (hasPaymentMethod) {
+      query += ' AND COALESCE(paymentMethod, \'cash\') = ?';
+      params.push('cash');
+    }
+    if (hasUserId && userId) {
       query += ' AND userId = ?';
       params.push(userId);
     }
+
     const rows = await db.getAllAsync<any>(query, params);
     setTodaySales(Number(rows?.[0]?.revenue ?? 0));
   }, [userId]);
@@ -81,6 +103,7 @@ export const useCashCut = () => {
         notes: input.notes ?? null,
         createdAt: new Date().toISOString(),
       });
+      await closeCashCut();
       await load();
     },
     [repository, todaySales, load]

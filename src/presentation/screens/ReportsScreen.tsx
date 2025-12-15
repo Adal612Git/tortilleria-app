@@ -562,17 +562,20 @@ export default function ReportsScreen() {
 
           ) : (
 
-            data.products.map((product) => (
-
-              <View key={product.name} style={styles.rowBetween}>
-
-                <Text style={styles.itemName}>{product.name}</Text>
-
-                <Text style={styles.itemQty}>{formatQuantity(product.quantity, 0)} piezas | {formatCurrency(product.revenue)}</Text>
-
-              </View>
-
-            ))
+            data.products.map((product) => {
+              const hideQuantity =
+                product.category !== undefined && ['tortilla', 'masa'].includes(product.category);
+              return (
+                <View key={product.name} style={styles.rowBetween}>
+                  <Text style={styles.itemName}>{product.name}</Text>
+                  <Text style={styles.itemQty}>
+                    {hideQuantity
+                      ? formatCurrency(product.revenue)
+                      : `${formatQuantity(product.quantity, 0)} piezas | ${formatCurrency(product.revenue)}`}
+                  </Text>
+                </View>
+              );
+            })
 
           )}
 

@@ -26,6 +26,7 @@ import { SalePanel } from '../../components/ui/SalePanel';
 import { PaymentConfirmationModal } from '../../components/ui/PaymentConfirmationModal';
 import { formatCurrency } from '../../utils/currency';
 import { usePaymentFlow } from '../../hooks/usePaymentFlow';
+import { useCashCutState } from '../../hooks/useCashCutState';
 import { CheckoutService } from '../../../application/services/CheckoutService';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -161,7 +162,13 @@ export default function SalesScreen() {
     }
   };
 
+  const { state: cashCutState } = useCashCutState();
+
   const startPayment = () => {
+    if (!cashCutState.isOpen) {
+      Alert.alert('Caja cerrada', 'Abre la caja antes de comenzar a cobrar.');
+      return;
+    }
     if (items.length === 0) return;
     payment.reset();
     setReviewOpen(false);
