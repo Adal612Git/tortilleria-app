@@ -4,7 +4,6 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  TextInput,
   LayoutAnimation,
   UIManager,
   Platform,
@@ -72,7 +71,6 @@ export default function SalesScreen() {
   const [payOpen, setPayOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [processingSale, setProcessingSale] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<CatalogFilterKey>('tortilla');
   const [saleProduct, setSaleProduct] = useState<Product | null>(null);
   const checkoutService = useMemo(() => new CheckoutService(), []);
@@ -111,16 +109,10 @@ export default function SalesScreen() {
     seedIfEmpty();
   }, [seedIfEmpty]);
 
-  const filtered = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    return products.filter(product => {
-      const matchesText =
-        term.length === 0 ||
-        product.name.toLowerCase().includes(term) ||
-        (product.description ?? '').toLowerCase().includes(term);
-      return matchesCategory(product, activeCategory) && matchesText;
-    });
-  }, [products, searchTerm, activeCategory]);
+  const filtered = useMemo(() => products.filter(product => matchesCategory(product, activeCategory)), [
+    products,
+    activeCategory,
+  ]);
 
   const pushItemToCart = (product: Product, quantity: number, unitLabel?: string, unitAmount?: number): boolean => {
     const normalized = parseFloat(quantity.toFixed(3));
@@ -171,6 +163,7 @@ export default function SalesScreen() {
     }
     if (items.length === 0) return;
     payment.reset();
+    payment.setAmount(cartTotal.toFixed(2));
     setReviewOpen(false);
     setPayOpen(true);
   };
@@ -247,16 +240,6 @@ export default function SalesScreen() {
             <TouchableOpacity onPress={logout} style={styles.headerButton}>
               <Text style={styles.headerButtonText}>Salir</Text>
             </TouchableOpacity>
-          </View>
-          <View style={styles.searchBox}>
-            <Ionicons name="search" size={18} color="#757575" />
-            <TextInput
-              placeholder="Buscar producto..."
-              placeholderTextColor="#9CA3AF"
-              style={styles.searchInput}
-              value={searchTerm}
-              onChangeText={setSearchTerm}
-            />
           </View>
         </View>
       <ScrollView
@@ -419,8 +402,6 @@ const styles = StyleSheet.create({
   headerButton: { backgroundColor: '#F1F5F9', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row', alignItems: 'center' },
   headerButtonIcon: { marginRight: 6 },
   headerButtonText: { color: '#212121', fontWeight: '700' },
-  searchBox: { marginTop: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', borderRadius: 12, paddingHorizontal: 12 },
-  searchInput: { flex: 1, paddingVertical: 12, paddingHorizontal: 8, fontSize: 16, color: '#212121' },
   categoryWrapper: { height: 50 },
   categoryScroll: { paddingVertical: 6, paddingRight: 16, alignItems: 'center' },
   categoryChip: {
