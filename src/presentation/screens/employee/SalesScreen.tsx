@@ -4,6 +4,7 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
+  Pressable,
   LayoutAnimation,
   UIManager,
   Platform,
@@ -80,7 +81,12 @@ export default function SalesScreen() {
   const ensureStockAvailability = useCallback((product: Product, requestedDelta: number) => {
     const cartItem = items.find(i => i.productId === product.id);
     const inCart = cartItem?.quantity ?? 0;
-    const remaining = product.stock - inCart;
+    const rawStock = Number(product.stock ?? 0);
+    const remaining = rawStock - inCart;
+    const isInfiniteStock = !Number.isFinite(rawStock) || rawStock >= 1e12;
+    if (isInfiniteStock || !Number.isFinite(remaining)) {
+      return true;
+    }
     if (requestedDelta > remaining + 1e-6) {
       const unitLabel = product.unit === 'kg' ? 'kg' : product.unit === 'pieza' ? 'pz' : product.unit;
       const decimals = unitLabel === 'kg' ? 3 : 0;
@@ -157,13 +163,21 @@ export default function SalesScreen() {
   const { state: cashCutState } = useCashCutState();
 
   const startPayment = () => {
+    console.log('--- CLICK DETECTADO EN COBRAR ---', {
+      itemsCount: items.length,
+      cartTotal,
+      cajaAbierta: cashCutState.isOpen,
+    });
     if (!cashCutState.isOpen) {
       Alert.alert('Caja cerrada', 'Abre la caja antes de comenzar a cobrar.');
       return;
     }
-    if (items.length === 0) return;
+    if (items.length === 0) {
+      Alert.alert('No se puede cobrar', 'Agrega productos al carrito antes de cobrar.');
+      return;
+    }
     payment.reset();
-    payment.setAmount(cartTotal.toFixed(2));
+    payment.setAmount('0');
     setReviewOpen(false);
     setPayOpen(true);
   };
@@ -324,9 +338,9 @@ export default function SalesScreen() {
                     </View>
                   </View>
                 ))}
-                <TouchableOpacity style={styles.payButton} onPress={startPayment} accessibilityLabel="Cobrar">
+                <Pressable style={styles.payButton} onPress={startPayment} accessibilityLabel="Cobrar">
                   <Text style={styles.payButtonText}>Cobrar</Text>
-                </TouchableOpacity>
+                </Pressable>
               </>
             )}
           </View>

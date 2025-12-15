@@ -1,13 +1,21 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuthStore } from '../../store/authStore';
+import { useAdminDashboardStats } from '../../hooks/useAdminDashboardStats';
 
 export default function AdminDashboardScreen() {
   const navigation = useNavigation<any>();
   const { user } = useAuthStore();
+  const { users, products, sales, loading, refresh } = useAdminDashboardStats();
+
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
 
   const dashboardCards = [
     {
@@ -93,15 +101,15 @@ export default function AdminDashboardScreen() {
           <Text style={styles.summaryTitle}>Resumen del Sistema</Text>
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
-              <Text style={[styles.summaryNumber, { color: '#2563EB' }]}>4</Text>
+              <Text style={[styles.summaryNumber, { color: '#2563EB' }]}>{loading ? '...' : users.toLocaleString()}</Text>
               <Text style={styles.summaryLabel}>Usuarios</Text>
             </View>
             <View style={styles.summaryItem}>
-              <Text style={[styles.summaryNumber, { color: '#16A34A' }]}>12</Text>
+              <Text style={[styles.summaryNumber, { color: '#16A34A' }]}>{loading ? '...' : products.toLocaleString()}</Text>
               <Text style={styles.summaryLabel}>Productos</Text>
             </View>
             <View style={styles.summaryItem}>
-              <Text style={[styles.summaryNumber, { color: '#7C3AED' }]}>47</Text>
+              <Text style={[styles.summaryNumber, { color: '#7C3AED' }]}>{loading ? '...' : sales.toLocaleString()}</Text>
               <Text style={styles.summaryLabel}>Ventas Hoy</Text>
             </View>
           </View>
@@ -148,4 +156,3 @@ const styles = StyleSheet.create({
   summaryNumber: { fontSize: 22, fontWeight: '800' },
   summaryLabel: { color: '#6B7280', fontSize: 12 },
 });
-

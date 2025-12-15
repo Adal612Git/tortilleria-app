@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, RefreshControl, TextInput, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatCurrency } from '../../utils/currency';
 import { useProductStore } from '../../store/productStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function ProductListScreen() {
   const navigation = useNavigation<any>();
@@ -17,6 +18,13 @@ export default function ProductListScreen() {
     };
     init();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+      setSearch('');
+    }, [load, setSearch])
+  );
 
   useEffect(() => {
     setSearch('');
