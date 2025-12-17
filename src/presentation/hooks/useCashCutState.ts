@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuthStore } from '../store/authStore';
 
 const STATE_KEY = '@tortilleria/cashCutState';
 
@@ -14,6 +15,8 @@ const defaultState: CashCutState = {
   openingFloat: 0,
   openedAt: null,
 };
+
+const buildKey = (userId?: number | null) => `${STATE_KEY}:${userId ?? 'anon'}`;
 
 const parseState = (raw: string | null): CashCutState => {
   if (!raw) return defaultState;
@@ -31,15 +34,16 @@ const parseState = (raw: string | null): CashCutState => {
 
 export const useCashCutState = () => {
   const [state, setState] = useState<CashCutState>(defaultState);
+  const userId = useAuthStore((s) => s.user?.id ?? null);
 
   const refresh = useCallback(async () => {
     try {
-      const raw = await AsyncStorage.getItem(STATE_KEY);
+      const raw = await AsyncStorage.getItem(buildKey(userId));
       setState(parseState(raw));
     } catch {
       setState(defaultState);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     refresh();
@@ -48,15 +52,15 @@ export const useCashCutState = () => {
   return { state, refresh };
 };
 
-export const openCashCut = async (openingFloat: number) => {
+export const openCashCut = async (openingFloat: number, userId?: number | null) => {
   const payload: CashCutState = {
     isOpen: true,
     openingFloat,
     openedAt: new Date().toISOString(),
   };
-  await AsyncStorage.setItem(STATE_KEY, JSON.stringify(payload));
+  await AsyncStorage.setItem(buildKey(userId), JSON.stringify(payload));
 };
 
-export const closeCashCut = async () => {
-  await AsyncStorage.setItem(STATE_KEY, JSON.stringify(defaultState));
+export const closeCashCut = async (userId?: number | null) => {
+  await AsyncStorage.setItem(buildKey(userId), JSON.stringify(defaultState));
 };

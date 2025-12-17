@@ -37,22 +37,22 @@ const catalogFilters = [
   { key: 'tortilla', label: 'Tortillas' },
   { key: 'tostada', label: 'Tostadas' },
   { key: 'masa', label: 'Masa' },
-  { key: 'salsa', label: 'Salsas' },
   { key: 'otros', label: 'Otros' },
 ] as const;
 
 type CatalogFilterKey = (typeof catalogFilters)[number]['key'];
 
-const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', '.'];
+const keypadLayout = [
+  ['1', '2', '3'],
+  ['4', '5', '6'],
+  ['7', '8', '9'],
+  ['', '0', 'C'],
+] as const;
 const productPlaceholder = require('../../../../assets/icon.png');
 
 const matchesCategory = (product: Product, filter: CatalogFilterKey) => {
-  const name = product.name.toLowerCase();
-  if (filter === 'salsa') {
-    return product.category === 'otros' && name.includes('salsa');
-  }
   if (filter === 'otros') {
-    return product.category === 'otros' && !name.includes('salsa');
+    return product.category === 'otros';
   }
   return product.category === filter;
 };
@@ -168,8 +168,11 @@ export default function SalesScreen() {
       cartTotal,
       cajaAbierta: cashCutState.isOpen,
     });
-    if (!cashCutState.isOpen) {
+    if (!cashCutState.isOpen && user?.role === 'empleado') {
       Alert.alert('Caja cerrada', 'Abre la caja antes de comenzar a cobrar.');
+      clear();
+      payment.reset();
+      toggle(false);
       return;
     }
     if (items.length === 0) {
@@ -355,15 +358,26 @@ export default function SalesScreen() {
             <Text style={styles.mutedCenter}>Efectivo</Text>
             <Text style={styles.modalBig}>{formatCurrency(payment.input || '0')}</Text>
 
-            <View style={styles.keypadRowWrap}>
-              {keypadKeys.map(key => (
-                <TouchableOpacity
-                  key={key}
-                  style={styles.keypadKey}
-                  onPress={() => payment.handleKeyPress(key)}
+            <View style={styles.keypad}>
+              {keypadLayout.map((row, rowIndex) => (
+                <View
+                  key={`row-${rowIndex}`}
+                  style={[styles.keypadRow, rowIndex === keypadLayout.length - 1 && styles.keypadRowLast]}
                 >
-                  <Text style={styles.keypadKeyText}>{key}</Text>
-                </TouchableOpacity>
+                  {row.map((key, keyIndex) =>
+                    key ? (
+                      <TouchableOpacity
+                        key={`${key}-${rowIndex}-${keyIndex}`}
+                        style={[styles.keypadKey, key === 'C' && styles.keypadKeyClear]}
+                        onPress={() => payment.handleKeyPress(key)}
+                      >
+                        <Text style={[styles.keypadKeyText, key === 'C' && styles.keypadKeyTextClear]}>{key}</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <View key={`empty-${rowIndex}-${keyIndex}`} style={[styles.keypadKey, styles.keypadKeyPlaceholder]} />
+                    )
+                  )}
+                </View>
               ))}
             </View>
 
@@ -473,9 +487,14 @@ const styles = StyleSheet.create({
   modalCard: { backgroundColor: 'white', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16 },
   mutedCenter: { textAlign: 'center', color: '#757575' },
   modalBig: { textAlign: 'center', fontSize: 28, fontWeight: '800', color: '#212121', marginBottom: 8 },
-  keypadRowWrap: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' },
-  keypadKey: { margin: 8, width: 72, height: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#F1F5F9' },
-  keypadKeyText: { fontSize: 18, color: '#212121' },
+  keypad: { marginTop: 16 },
+  keypadRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12, marginHorizontal: -6 },
+  keypadRowLast: { marginBottom: 0 },
+  keypadKey: { flex: 1, marginHorizontal: 6, height: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#F1F5F9' },
+  keypadKeyClear: { backgroundColor: '#FFE4E6' },
+  keypadKeyPlaceholder: { backgroundColor: 'transparent' },
+  keypadKeyText: { fontSize: 18, color: '#212121', fontWeight: '600' },
+  keypadKeyTextClear: { color: '#B91C1C' },
   modalActions: { flexDirection: 'row', marginTop: 8 },
   modalBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
   modalCancel: { backgroundColor: '#D32F2F', marginRight: 8 },

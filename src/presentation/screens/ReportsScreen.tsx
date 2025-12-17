@@ -1,4 +1,4 @@
-import React, { ChangeEvent, useCallback, useMemo, useState } from 'react';
+﻿import React, { ChangeEvent, useCallback, useMemo, useState } from 'react';
 
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Platform } from 'react-native';
 
@@ -537,12 +537,6 @@ export default function ReportsScreen() {
 
             </View>
 
-            <Text style={styles.mutedSmall}>
-
-              Total piezas vendidas: {formatQuantity(data.totals.items, 0)}
-
-            </Text>
-
           </View>
 
         </View>
@@ -809,7 +803,7 @@ const styles = StyleSheet.create({
 
   sectionCard: { backgroundColor: 'white', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 16 },
 
-  sectionHeader: { marginBottom: 8 },
+  sectionHeader: { marginBottom: 12 },
 
   sectionTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
 
@@ -821,7 +815,7 @@ const styles = StyleSheet.create({
 
   itemQty: { color: '#475569', fontWeight: '600' },
 
-  toggleRow: { flexDirection: 'row', columnGap: 8 },
+  toggleRow: { flexDirection: 'row', columnGap: 8, marginTop: 8, marginBottom: 4, paddingBottom: 4 },
 
   toggleButton: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
 
@@ -852,3 +846,5 @@ const styles = StyleSheet.create({
   stockBadgeText: { color: '#0F172A', fontWeight: '700' },
 
 });
+
+

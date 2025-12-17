@@ -81,6 +81,7 @@ export class DatabaseService {
         countedCash REAL NOT NULL,
         difference REAL NOT NULL,
         notes TEXT,
+        userId INTEGER,
         createdAt TEXT NOT NULL
       );
     `);
@@ -238,6 +239,10 @@ export class DatabaseService {
     if (!(await columnExists('sales', 'paymentMethod'))) {
       console.log('🧩 Migrando sales: agregando paymentMethod');
       await db.execAsync(`ALTER TABLE sales ADD COLUMN paymentMethod TEXT DEFAULT 'cash';`);
+    }
+    if (!(await columnExists('cash_audits', 'userId'))) {
+      console.log('Migrando cash_audits: agregando userId');
+      await db.execAsync(`ALTER TABLE cash_audits ADD COLUMN userId INTEGER;`);
     }
   }
 

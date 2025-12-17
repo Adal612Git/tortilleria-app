@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatCurrency } from '../../utils/currency';
 import { useCashCut } from '../../hooks/useCashCut';
 import { openCashCut, useCashCutState } from '../../hooks/useCashCutState';
+import { useFocusEffect } from '@react-navigation/native';
+import { useAuthStore } from '../../store/authStore';
 
 const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
 const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -30,33 +32,49 @@ const formatCutDate = (iso: string) => {
     .toString()
     .padStart(2, '0')} | ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
 };
+const isSameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
 export default function CashCutScreen() {
-  const { audits, loading, error, todaySales, recordCut } = useCashCut();
+  const { audits, loading, error, todaySales, recordCut, refresh } = useCashCut();
   const { state: cutState, refresh: refreshCutState } = useCashCutState();
+  const userId = useAuthStore((s) => s.user?.id ?? null);
   const [openingFloatInput, setOpeningFloatInput] = useState('0');
   const [countedCash, setCountedCash] = useState('0');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [visibleSales, setVisibleSales] = useState(0);
+  const [visibleExpected, setVisibleExpected] = useState(0);
 
-  const latestCut = audits[0];
+  const baselineSales = useMemo(() => {
+    const now = new Date();
+    return audits.reduce((sum, audit) => {
+      const auditDate = new Date(audit.createdAt);
+      if (!Number.isNaN(auditDate.getTime()) && isSameDay(auditDate, now)) {
+        return sum + Number(audit.cashSales ?? 0);
+      }
+      return sum;
+    }, 0);
+  }, [audits]);
+
+  const netSales = Math.max(todaySales - baselineSales, 0);
   const parsedOpening = cutState.isOpen ? cutState.openingFloat : Number(openingFloatInput) || 0;
   const parsedCounted = Number(countedCash) || 0;
-  const expected = parsedOpening + todaySales;
+  const expected = parsedOpening + netSales;
   const gap = parsedCounted - expected;
 
   const summary = useMemo(
     () => [
-      { label: 'Monto de inicio', value: latestCut?.openingFloat ?? parsedOpening, accent: '#6366F1' },
-      { label: 'Ventas en efectivo', value: latestCut?.cashSales ?? todaySales, accent: '#10B981' },
-      { label: 'Total esperado', value: latestCut?.expectedCash ?? expected, accent: '#0EA5E9' },
+      { label: 'Monto de inicio', value: parsedOpening, accent: '#6366F1' },
+      { label: 'Ventas en efectivo', value: visibleSales, accent: '#10B981' },
+      { label: 'Total esperado', value: visibleExpected, accent: '#0EA5E9' },
       {
         label: 'Resultado',
-        value: latestCut?.difference ?? gap,
-        accent: (latestCut?.difference ?? gap) >= 0 ? '#22C55E' : '#EF4444',
+        value: cutState.isOpen ? gap : 0,
+        accent: (cutState.isOpen ? gap : 0) >= 0 ? '#22C55E' : '#EF4444',
       },
     ],
-    [latestCut, todaySales, parsedOpening, expected, gap]
+    [parsedOpening, visibleSales, visibleExpected, cutState.isOpen, gap]
   );
 
   useEffect(() => {
@@ -65,6 +83,26 @@ export default function CashCutScreen() {
     }
   }, [cutState.isOpen, cutState.openingFloat]);
 
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
+
+  useEffect(() => {
+    if (cutState.isOpen) {
+      setVisibleSales(netSales);
+      setVisibleExpected(parsedOpening + netSales);
+    } else {
+      setVisibleSales(0);
+      setVisibleExpected(0);
+    }
+    return () => {
+      setVisibleSales(0);
+      setVisibleExpected(0);
+    };
+  }, [cutState.isOpen, netSales, parsedOpening]);
+
   const handleOpen = async () => {
     const parsed = Number(openingFloatInput) || 0;
     if (parsed <= 0) {
@@ -72,7 +110,7 @@ export default function CashCutScreen() {
       return;
     }
     try {
-      await openCashCut(parsed);
+      await openCashCut(parsed, userId);
       refreshCutState();
       Alert.alert('Caja abierta', 'Ya puedes cobrar operaciones.');
     } catch (err: any) {
@@ -138,7 +176,7 @@ export default function CashCutScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{cutState.isOpen ? 'Registrar corte' : 'Abrir caja'}</Text>
-          <Text style={styles.muted}>Ventas en efectivo del día: {formatCurrency(todaySales)}</Text>
+          <Text style={styles.muted}>Ventas en efectivo del día: {formatCurrency(visibleSales)}</Text>
 
           {!cutState.isOpen ? (
             <>

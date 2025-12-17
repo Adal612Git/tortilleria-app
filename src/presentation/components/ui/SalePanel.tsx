@@ -4,7 +4,13 @@ import { Product } from '../../../domain/entities/Product';
 import { useSaleCalculator } from '../../hooks/useSaleCalculator';
 import { formatCurrency } from '../../utils/currency';
 
-const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'C'] as const;
+type KeypadKey = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'C' | '.';
+const keypadLayout: ReadonlyArray<ReadonlyArray<KeypadKey | ''>> = [
+  ['1', '2', '3'],
+  ['4', '5', '6'],
+  ['7', '8', '9'],
+  ['', '0', 'C'],
+];
 const kiloPresets = [
   { label: '1/4 kg', value: 0.25 },
   { label: '1/2 kg', value: 0.5 },
@@ -38,7 +44,7 @@ export function SalePanel({ product, visible, onClose, onConfirm }: Props) {
     onConfirm({ mode, kilos: parseFloat(kilosValue.toFixed(3)) });
   };
 
-  const handleKeyPress = (key: (typeof keypadKeys)[number]) => {
+  const handleKeyPress = (key: KeypadKey) => {
     if (mode !== 'pesos') {
       return;
     }
@@ -80,16 +86,16 @@ export function SalePanel({ product, visible, onClose, onConfirm }: Props) {
 
           <View style={styles.toggleRow}>
             <TouchableOpacity
-              style={[styles.toggleButton, mode === 'pesos' && styles.toggleButtonActive]}
-              onPress={() => setMode('pesos')}
-            >
-              <Text style={[styles.toggleText, mode === 'pesos' && styles.toggleTextActive]}>PESOS</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
               style={[styles.toggleButton, mode === 'kilos' && styles.toggleButtonActive]}
               onPress={() => setMode('kilos')}
             >
               <Text style={[styles.toggleText, mode === 'kilos' && styles.toggleTextActive]}>KILOS</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleButton, mode === 'pesos' && styles.toggleButtonActive]}
+              onPress={() => setMode('pesos')}
+            >
+              <Text style={[styles.toggleText, mode === 'pesos' && styles.toggleTextActive]}>PESOS</Text>
             </TouchableOpacity>
           </View>
 
@@ -119,16 +125,24 @@ export function SalePanel({ product, visible, onClose, onConfirm }: Props) {
 
           {mode === 'pesos' && (
             <View style={styles.keypad}>
-              {keypadKeys.map((key) => (
-                <TouchableOpacity
-                  key={key}
-                  style={[styles.keypadKey, key === 'C' && styles.keypadKeyClear]}
-                  onPress={() => handleKeyPress(key)}
-                >
-                  <Text style={[styles.keypadKeyText, key === 'C' && styles.keypadKeyTextClear]}>
-                    {key === 'C' ? 'Limpiar' : key}
-                  </Text>
-                </TouchableOpacity>
+              {keypadLayout.map((row, rowIndex) => (
+                <View key={`row-${rowIndex}`} style={styles.keypadRow}>
+                  {row.map((key, keyIndex) =>
+                    key ? (
+                      <TouchableOpacity
+                        key={`${key}-${rowIndex}-${keyIndex}`}
+                        style={[styles.keypadKey, key === 'C' && styles.keypadKeyClear]}
+                        onPress={() => handleKeyPress(key)}
+                      >
+                        <Text style={[styles.keypadKeyText, key === 'C' && styles.keypadKeyTextClear]}>
+                          {key === 'C' ? 'Limpiar' : key}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <View key={`blank-${rowIndex}-${keyIndex}`} style={[styles.keypadKey, styles.keypadKeyPlaceholder]} />
+                    )
+                  )}
+                </View>
               ))}
             </View>
           )}
@@ -177,9 +191,11 @@ const styles = StyleSheet.create({
   presetText: { fontWeight: '700', color: '#1E3A8A', fontSize: 12 },
   clearButton: { borderWidth: 1, borderColor: '#F87171', borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
   clearButtonText: { color: '#B91C1C', fontWeight: '700' },
-  keypad: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
-  keypadKey: { flexBasis: '30%', backgroundColor: '#F1F5F9', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  keypad: { gap: 12 },
+  keypadRow: { flexDirection: 'row', gap: 12 },
+  keypadKey: { flex: 1, backgroundColor: '#F1F5F9', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   keypadKeyClear: { backgroundColor: '#FFE4E6' },
+  keypadKeyPlaceholder: { backgroundColor: 'transparent' },
   keypadKeyText: { fontWeight: '700', fontSize: 18, color: '#0F172A' },
   keypadKeyTextClear: { color: '#B91C1C' },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
@@ -190,5 +206,4 @@ const styles = StyleSheet.create({
   addButtonDisabled: { opacity: 0.4 },
   addButtonText: { color: 'white', fontWeight: '700', fontSize: 16 },
 });
-
 

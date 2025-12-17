@@ -11,17 +11,23 @@ export type CashCutRecord = {
   difference: number;
   notes?: string | null;
   createdAt: string;
+  userId: number | null;
 };
 
 export class CashCutRepository {
   private db = DatabaseService.getInstance();
 
-  async list(limit = 20): Promise<CashCutRecord[]> {
+  async list(limit = 20, userId?: number | null): Promise<CashCutRecord[]> {
     const database = await this.db.getDatabase();
-    const rows = await database.getAllAsync<any>(
-      'SELECT * FROM cash_audits ORDER BY datetime(createdAt) DESC LIMIT ?',
-      [limit]
-    );
+    const params: any[] = [];
+    let query = 'SELECT * FROM cash_audits';
+    if (typeof userId === 'number') {
+      query += ' WHERE userId = ?';
+      params.push(userId);
+    }
+    query += ' ORDER BY datetime(createdAt) DESC LIMIT ?';
+    params.push(limit);
+    const rows = await database.getAllAsync<any>(query, params);
     return rows.map((row: any) => ({
       id: String(row.id),
       openingFloat: Number(row.openingFloat ?? 0),
@@ -33,14 +39,15 @@ export class CashCutRepository {
       difference: Number(row.difference ?? 0),
       notes: row.notes ?? null,
       createdAt: row.createdAt,
+      userId: row.userId != null ? Number(row.userId) : null,
     }));
   }
 
   async create(audit: Omit<CashCutRecord, 'id'>): Promise<void> {
     const database = await this.db.getDatabase();
     await database.runAsync(
-      `INSERT INTO cash_audits (openingFloat, entries, exits, cashSales, expectedCash, countedCash, difference, notes, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
+      `INSERT INTO cash_audits (openingFloat, entries, exits, cashSales, expectedCash, countedCash, difference, notes, userId, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
       [
         audit.openingFloat,
         audit.entries,
@@ -50,6 +57,7 @@ export class CashCutRepository {
         audit.countedCash,
         audit.difference,
         audit.notes ?? null,
+        audit.userId ?? null,
         audit.createdAt,
       ]
     );

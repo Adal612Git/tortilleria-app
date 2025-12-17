@@ -4,11 +4,11 @@ type Mode = 'pesos' | 'kilos';
 
 export const useSaleCalculator = (incomingPricePerKg: number) => {
   const pricePerKg = incomingPricePerKg > 0 ? incomingPricePerKg : 0.000001;
-  const [mode, setModeInternal] = useState<Mode>('pesos');
+  const [mode, setModeInternal] = useState<Mode>('kilos');
   const [rawValue, setRawValue] = useState('0');
 
   useEffect(() => {
-    setModeInternal('pesos');
+    setModeInternal('kilos');
     setRawValue('0');
   }, [pricePerKg]);
 
@@ -75,7 +75,7 @@ export const useSaleCalculator = (incomingPricePerKg: number) => {
   }, [kilosValue, mode, formatValue, pricePerKg]);
 
   const reset = useCallback(() => {
-    setModeInternal('pesos');
+    setModeInternal('kilos');
     setRawValue('0');
   }, []);
 

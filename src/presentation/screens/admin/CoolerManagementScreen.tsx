@@ -139,7 +139,7 @@ export default function CoolerManagementScreen() {
   const [createVisible, setCreateVisible] = useState(false);
   const [selectedRider, setSelectedRider] = useState<number | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<string | undefined>(undefined);
-  const [kilosOut, setKilosOut] = useState(10);
+  const [kilosOut, setKilosOut] = useState(0);
   const [priceInput, setPriceInput] = useState('18.00');
 
   const [liquidateVisible, setLiquidateVisible] = useState(false);
@@ -159,7 +159,7 @@ export default function CoolerManagementScreen() {
     const defaultPrice = '18.00';
     setSelectedRider(null);
     setSelectedProductId(defaultProductId);
-    setKilosOut(10);
+    setKilosOut(0);
     setPriceInput(defaultPrice);
     setCreateVisible(true);
   };
